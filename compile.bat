@@ -12,7 +12,9 @@ if exist "%JBR_BIN%\javac.exe" (
     set "JAVAC=javac"
 )
 
-if not exist "bin" mkdir bin
+:: Clean old compiled class files
+if exist "bin" rmdir /s /q bin
+mkdir bin
 
 echo Using compiler: !JAVAC!
 echo Compiling single source file HospitalApp.java...

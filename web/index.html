@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>District Health Society • Emergency Resource Allocation System</title>
+  <link rel="icon" type="image/png" href="logo.png">
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +16,7 @@
   <div class="gov-top-ribbon">
     <div class="ribbon-inner">
       <div class="ribbon-left">
-        <span class="ribbon-emblem">🏥</span>
+        <img src="logo.png" alt="Logo" class="ribbon-mini-logo">
         <span>DEPARTMENT OF HEALTH & FAMILY WELFARE • GOVERNMENT OF TAMIL NADU</span>
         <span class="ribbon-sep">|</span>
         <span>DISTRICT HEALTH SOCIETY (NALAM DISTRICT)</span>
@@ -33,10 +34,8 @@
     <!-- Clinical Main Header Bar -->
     <header class="hospital-header">
       <div class="header-branding">
-        <div class="hospital-seal">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2v20M2 12h20"/>
-          </svg>
+        <div class="hospital-brand-logo-wrap">
+          <img src="logo.png" alt="Nalam District Hospital Network" class="hospital-brand-logo">
         </div>
         <div class="hospital-title-block">
           <div class="system-tag">HOSPITAL EMERGENCY RESOURCE MANAGEMENT SYSTEM (ERMS)</div>
@@ -517,7 +516,10 @@
 
   <footer class="hospital-footer">
     <div class="footer-inner">
-      <span>District Health Society • Nalam District Healthcare Informatics Division</span>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <img src="logo.png" alt="Logo" style="height: 24px; width: auto; object-fit: contain;">
+        <span>District Health Society • Nalam District Healthcare Informatics Division</span>
+      </div>
       <span>Pure Core Java SE & Standards-Compliant Healthcare Web Application</span>
     </div>
   </footer>

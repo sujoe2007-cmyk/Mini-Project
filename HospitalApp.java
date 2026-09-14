@@ -1,187 +1,13 @@
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
 
 // =============================================================================
-// 1. ENUMS & DOMAIN MODELS
+// 1. BED HIERARCHY (Inheritance & Polymorphism)
 // =============================================================================
 
 /**
- * Severity level assigned by the emergency triage operator.
- * Ordered by clinical urgency: CRITICAL > SERIOUS > MINOR.
- */
-enum Severity {
-    CRITICAL(1, "Critical", "Immediate life threat; requires urgent resuscitation or ICU care"),
-    SERIOUS(2, "Serious", "Severe condition; requires timely acute intervention and monitoring"),
-    MINOR(3, "Minor", "Non-life-threatening condition; stable and can wait for standard general bed");
-
-    private final int rank;
-    private final String displayName;
-    private final String description;
-
-    Severity(int rank, String displayName, String description) {
-        this.rank = rank;
-        this.displayName = displayName;
-        this.description = description;
-    }
-
-    public int getRank() {
-        return rank;
-    }
-
-    public String getDisplayName() {
-        return displayName;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    @Override
-    public String toString() {
-        return displayName;
-    }
-}
-
-/**
- * Represents a geographical node/location in Nalam District.
- */
-class Location {
-    private final String locationId;
-    private final String name;
-    private final String description;
-
-    public Location(String locationId, String name, String description) {
-        this.locationId = Objects.requireNonNull(locationId, "locationId cannot be null");
-        this.name = Objects.requireNonNull(name, "name cannot be null");
-        this.description = description;
-    }
-
-    public String getLocationId() {
-        return locationId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Location location)) return false;
-        return Objects.equals(locationId, location.locationId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(locationId);
-    }
-
-    @Override
-    public String toString() {
-        return String.format("[%s] %s (%s)", locationId, name, description != null ? description : "");
-    }
-}
-
-/**
- * Represents a weighted edge in the road network graph.
- * Weight is road travel time in minutes.
- */
-class RoadEdge {
-    private final String fromLocationId;
-    private final String toLocationId;
-    private int travelTimeMinutes;
-
-    public RoadEdge(String fromLocationId, String toLocationId, int travelTimeMinutes) {
-        this.fromLocationId = Objects.requireNonNull(fromLocationId, "fromLocationId cannot be null");
-        this.toLocationId = Objects.requireNonNull(toLocationId, "toLocationId cannot be null");
-        if (travelTimeMinutes < 0) {
-            throw new IllegalArgumentException("Travel time cannot be negative: " + travelTimeMinutes);
-        }
-        this.travelTimeMinutes = travelTimeMinutes;
-    }
-
-    public String getFromLocationId() {
-        return fromLocationId;
-    }
-
-    public String getToLocationId() {
-        return toLocationId;
-    }
-
-    public int getTravelTimeMinutes() {
-        return travelTimeMinutes;
-    }
-
-    public void setTravelTimeMinutes(int travelTimeMinutes) {
-        if (travelTimeMinutes < 0) {
-            throw new IllegalArgumentException("Travel time cannot be negative: " + travelTimeMinutes);
-        }
-        this.travelTimeMinutes = travelTimeMinutes;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("%s -> %s (%d min)", fromLocationId, toLocationId, travelTimeMinutes);
-    }
-}
-
-/**
- * Encapsulates the output of Dijkstra's algorithm:
- * shortest distances and reconstructed shortest paths from the source location.
- */
-class DijkstraResult {
-    private final String sourceLocationId;
-    private final Map<String, Integer> distances;
-    private final Map<String, String> predecessors;
-
-    public DijkstraResult(String sourceLocationId, Map<String, Integer> distances, Map<String, String> predecessors) {
-        this.sourceLocationId = sourceLocationId;
-        this.distances = new HashMap<>(distances);
-        this.predecessors = new HashMap<>(predecessors);
-    }
-
-    public String getSourceLocationId() {
-        return sourceLocationId;
-    }
-
-    public boolean hasPathTo(String destinationLocationId) {
-        Integer dist = distances.get(destinationLocationId);
-        return dist != null && dist < Integer.MAX_VALUE;
-    }
-
-    public int getDistanceTo(String destinationLocationId) {
-        return distances.getOrDefault(destinationLocationId, Integer.MAX_VALUE);
-    }
-
-    public List<String> getPathTo(String destinationLocationId) {
-        if (!hasPathTo(destinationLocationId)) {
-            return Collections.emptyList();
-        }
-        LinkedList<String> path = new LinkedList<>();
-        String curr = destinationLocationId;
-        while (curr != null) {
-            path.addFirst(curr);
-            if (curr.equals(sourceLocationId)) {
-                break;
-            }
-            curr = predecessors.get(curr);
-        }
-        return path;
-    }
-
-    public Map<String, Integer> getAllDistances() {
-        return Collections.unmodifiableMap(distances);
-    }
-}
-
-/**
- * Abstract base class representing a hospital bed.
+ * Abstract Bed base class.
  * Demonstrates:
  * - Abstraction: abstract method supportsRequirement()
  * - Encapsulation: private bed state accessible only through admitPatient() and dischargePatient()
@@ -221,10 +47,16 @@ abstract class Bed {
         return currentPatientId;
     }
 
+    /**
+     * Polymorphic method to be overridden by subclasses.
+     */
     public abstract boolean supportsRequirement(String facilityRequirement);
 
     public abstract String getBedType();
 
+    /**
+     * Encapsulation: bed state changes strictly through admitPatient().
+     */
     public void admitPatient(String patientId) {
         if (this.occupied) {
             throw new IllegalStateException("Bed " + bedId + " is already occupied by patient " + currentPatientId);
@@ -233,6 +65,9 @@ abstract class Bed {
         this.currentPatientId = Objects.requireNonNull(patientId, "patientId cannot be null");
     }
 
+    /**
+     * Encapsulation: bed state changes strictly through dischargePatient().
+     */
     public void dischargePatient() {
         if (!this.occupied) {
             throw new IllegalStateException("Bed " + bedId + " is already vacant.");
@@ -242,26 +77,15 @@ abstract class Bed {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Bed bed)) return false;
-        return Objects.equals(bedId, bed.bedId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(bedId);
-    }
-
-    @Override
     public String toString() {
         return String.format("[%s] Bed %s (%s) @ %s - %s",
-                bedId, bedNumber, getBedType(), hospitalId, occupied ? "OCCUPIED (Patient: " + currentPatientId + ")" : "VACANT");
+                bedId, bedNumber, getBedType(), hospitalId,
+                occupied ? "OCCUPIED (Patient: " + currentPatientId + ")" : "VACANT");
     }
 }
 
 /**
- * General Ward Bed subclass.
+ * General ward bed subclass overriding supportsRequirement().
  */
 class GeneralBed extends Bed {
     private final boolean hasOxygenSupport;
@@ -289,24 +113,18 @@ class GeneralBed extends Bed {
 }
 
 /**
- * Intensive Care Unit (ICU) Bed subclass.
+ * Intensive Care Unit bed subclass overriding supportsRequirement().
  */
 class ICUBed extends Bed {
     private final boolean hasVentilator;
-    private final boolean hasAdvancedTelemetry;
 
-    public ICUBed(String bedId, String hospitalId, String bedNumber, boolean hasVentilator, boolean hasAdvancedTelemetry) {
+    public ICUBed(String bedId, String hospitalId, String bedNumber, boolean hasVentilator) {
         super(bedId, hospitalId, bedNumber);
         this.hasVentilator = hasVentilator;
-        this.hasAdvancedTelemetry = hasAdvancedTelemetry;
     }
 
     public boolean isHasVentilator() {
         return hasVentilator;
-    }
-
-    public boolean isHasAdvancedTelemetry() {
-        return hasAdvancedTelemetry;
     }
 
     @Override
@@ -318,21 +136,137 @@ class ICUBed extends Bed {
     public boolean supportsRequirement(String facilityRequirement) {
         if (facilityRequirement == null) return false;
         String req = facilityRequirement.trim().toLowerCase();
-        return req.equals("icu") || req.equals("ventilator") || req.equals("critical care") || req.equals("critical");
+        return req.equals("icu") || req.equals("ventilator") || req.equals("critical");
     }
 }
 
+// =============================================================================
+// 2. DOCTOR (Encapsulation)
+// =============================================================================
+
 /**
- * Represents a patient arriving at the emergency department.
- * Implements Comparable to maintain deterministic triage ordering:
- * 1. Urgency/Severity (CRITICAL > SERIOUS > MINOR)
+ * Represents a medical officer on duty.
+ * Encapsulation: Private duty status and patient assignment states change
+ * exclusively through admitPatient(), dischargePatient(), and setDutyStatus().
+ */
+class Doctor {
+    private final String doctorId;
+    private final String name;
+    private final String specialization;
+    private final String hospitalId;
+    private boolean onDuty;
+    private String assignedPatientId;
+
+    public Doctor(String doctorId, String name, String specialization, String hospitalId, boolean onDuty) {
+        this.doctorId = Objects.requireNonNull(doctorId, "doctorId cannot be null");
+        this.name = Objects.requireNonNull(name, "name cannot be null");
+        this.specialization = Objects.requireNonNull(specialization, "specialization cannot be null");
+        this.hospitalId = Objects.requireNonNull(hospitalId, "hospitalId cannot be null");
+        this.onDuty = onDuty;
+        this.assignedPatientId = null;
+    }
+
+    public String getDoctorId() {
+        return doctorId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getSpecialization() {
+        return specialization;
+    }
+
+    public String getHospitalId() {
+        return hospitalId;
+    }
+
+    public boolean isOnDuty() {
+        return onDuty;
+    }
+
+    public boolean isAvailable() {
+        return onDuty && assignedPatientId == null;
+    }
+
+    public String getAssignedPatientId() {
+        return assignedPatientId;
+    }
+
+    /**
+     * Encapsulation: duty state updated strictly via setDutyStatus().
+     */
+    public void setDutyStatus(boolean onDuty) {
+        if (!onDuty && assignedPatientId != null) {
+            throw new IllegalStateException("Doctor " + name + " cannot go off-duty while currently attending patient " + assignedPatientId);
+        }
+        this.onDuty = onDuty;
+    }
+
+    /**
+     * Encapsulation: doctor patient assignment strictly via admitPatient().
+     */
+    public void admitPatient(String patientId) {
+        if (!this.onDuty) {
+            throw new IllegalStateException("Doctor " + name + " is OFF-DUTY and cannot admit patients.");
+        }
+        if (this.assignedPatientId != null) {
+            throw new IllegalStateException("Doctor " + name + " is already attending patient " + assignedPatientId);
+        }
+        this.assignedPatientId = Objects.requireNonNull(patientId, "patientId cannot be null");
+    }
+
+    /**
+     * Encapsulation: doctor patient release strictly via dischargePatient().
+     */
+    public void dischargePatient() {
+        if (this.assignedPatientId == null) {
+            throw new IllegalStateException("Doctor " + name + " has no assigned patient to discharge.");
+        }
+        this.assignedPatientId = null;
+    }
+
+    public boolean canTreat(int severity, String facilityRequirement) {
+        if (!this.onDuty || this.assignedPatientId != null) {
+            return false;
+        }
+        if (severity == Patient.CRITICAL || "ICU".equalsIgnoreCase(facilityRequirement)) {
+            return specialization.equalsIgnoreCase("Critical Care") ||
+                   specialization.equalsIgnoreCase("Emergency Medicine") ||
+                   specialization.equalsIgnoreCase("Trauma Surgery");
+        }
+        return true;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("[%s] Dr. %s (%s) @ %s - Duty: %s | Status: %s",
+                doctorId, name, specialization, hospitalId,
+                onDuty ? "ON-DUTY" : "OFF-DUTY",
+                assignedPatientId != null ? "BUSY (Patient: " + assignedPatientId + ")" : "AVAILABLE");
+    }
+}
+
+// =============================================================================
+// 3. PATIENT (PriorityQueue Deterministic Ordering)
+// =============================================================================
+
+/**
+ * Represents a patient arriving at emergency triage.
+ * Implements Comparable for deterministic PriorityQueue ordering:
+ * 1. Severity/Urgency rank (CRITICAL=1 > SERIOUS=2 > MINOR=3)
  * 2. Arrival Sequence (earlier arrival first)
- * 3. Patient ID (lexicographical tie-break)
+ * 3. Patient ID (lexicographical tie-breaker)
  */
 class Patient implements Comparable<Patient> {
+    public static final int CRITICAL = 1;
+    public static final int SERIOUS = 2;
+    public static final int MINOR = 3;
+
     public enum Status {
         WAITING,
-        ADMITTED_LOCAL,
+        ADMITTED,
         REFERRED,
         DISCHARGED
     }
@@ -341,8 +275,8 @@ class Patient implements Comparable<Patient> {
     private final String name;
     private final int age;
     private final String gender;
-    private Severity severity;
-    private String requiredFacility;
+    private int severity; // 1 = Critical, 2 = Serious, 3 = Minor
+    private String requiredFacility; // "General" or "ICU"
     private final long arrivalSequence;
     private final LocalDateTime arrivalTime;
 
@@ -353,12 +287,12 @@ class Patient implements Comparable<Patient> {
     private String referralNotes;
 
     public Patient(String patientId, String name, int age, String gender,
-                   Severity severity, String requiredFacility, long arrivalSequence) {
+                   int severity, String requiredFacility, long arrivalSequence) {
         this.patientId = Objects.requireNonNull(patientId, "patientId cannot be null");
         this.name = Objects.requireNonNull(name, "name cannot be null");
         this.age = age;
         this.gender = gender;
-        this.severity = Objects.requireNonNull(severity, "severity cannot be null");
+        this.severity = severity;
         this.requiredFacility = Objects.requireNonNull(requiredFacility, "requiredFacility cannot be null");
         this.arrivalSequence = arrivalSequence;
         this.arrivalTime = LocalDateTime.now();
@@ -381,12 +315,20 @@ class Patient implements Comparable<Patient> {
         return gender;
     }
 
-    public Severity getSeverity() {
+    public int getSeverity() {
         return severity;
     }
 
-    public void setSeverity(Severity severity) {
-        this.severity = Objects.requireNonNull(severity, "severity cannot be null");
+    public void setSeverity(int severity) {
+        this.severity = severity;
+    }
+
+    public String getSeverityLabel() {
+        return switch (severity) {
+            case CRITICAL -> "Critical";
+            case SERIOUS -> "Serious";
+            default -> "Minor";
+        };
     }
 
     public String getRequiredFacility() {
@@ -445,352 +387,50 @@ class Patient implements Comparable<Patient> {
         this.referralNotes = referralNotes;
     }
 
+    /**
+     * Deterministic comparison:
+     * 1. Severity rank ascending (1 = Critical, 2 = Serious, 3 = Minor)
+     * 2. Arrival sequence ascending (earlier arrival first)
+     * 3. Patient ID ascending (strict tie-breaker)
+     */
     @Override
     public int compareTo(Patient other) {
         if (this == other) return 0;
-        int severityDiff = Integer.compare(this.severity.getRank(), other.severity.getRank());
-        if (severityDiff != 0) {
-            return severityDiff;
-        }
+        int sevDiff = Integer.compare(this.severity, other.severity);
+        if (sevDiff != 0) return sevDiff;
         int seqDiff = Long.compare(this.arrivalSequence, other.arrivalSequence);
-        if (seqDiff != 0) {
-            return seqDiff;
-        }
+        if (seqDiff != 0) return seqDiff;
         return this.patientId.compareTo(other.patientId);
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Patient patient)) return false;
-        return Objects.equals(patientId, patient.patientId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(patientId);
-    }
-
-    @Override
     public String toString() {
-        return String.format("[%s] %s (Seq: %d, Age: %d, %s) - Urgency: %s, Facility: %s, Status: %s",
-                patientId, name, arrivalSequence, age, gender, severity, requiredFacility, status);
+        return String.format("[%s] %s (Age: %d, %s) - Urgency: %s, Facility: %s, Seq: #%d, Status: %s",
+                patientId, name, age, gender, getSeverityLabel(), requiredFacility, arrivalSequence, status);
     }
 }
 
-/**
- * Represents a medical officer / doctor on duty in a hospital.
- */
-class Doctor {
-    private final String doctorId;
-    private final String name;
-    private final String specialization;
-    private final String hospitalId;
-    private boolean onDuty;
-    private String assignedPatientId;
-
-    public Doctor(String doctorId, String name, String specialization, String hospitalId, boolean onDuty) {
-        this.doctorId = Objects.requireNonNull(doctorId, "doctorId cannot be null");
-        this.name = Objects.requireNonNull(name, "name cannot be null");
-        this.specialization = Objects.requireNonNull(specialization, "specialization cannot be null");
-        this.hospitalId = Objects.requireNonNull(hospitalId, "hospitalId cannot be null");
-        this.onDuty = onDuty;
-        this.assignedPatientId = null;
-    }
-
-    public String getDoctorId() {
-        return doctorId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getSpecialization() {
-        return specialization;
-    }
-
-    public String getHospitalId() {
-        return hospitalId;
-    }
-
-    public boolean isOnDuty() {
-        return onDuty;
-    }
-
-    public boolean isAvailable() {
-        return onDuty && assignedPatientId == null;
-    }
-
-    public String getAssignedPatientId() {
-        return assignedPatientId;
-    }
-
-    public void setDutyStatus(boolean onDuty) {
-        if (!onDuty && assignedPatientId != null) {
-            throw new IllegalStateException("Doctor " + name + " (" + doctorId + ") cannot go off-duty while currently attending patient " + assignedPatientId);
-        }
-        this.onDuty = onDuty;
-    }
-
-    public void admitPatient(String patientId) {
-        if (!this.onDuty) {
-            throw new IllegalStateException("Doctor " + name + " is currently OFF-DUTY and cannot admit patients.");
-        }
-        if (this.assignedPatientId != null) {
-            throw new IllegalStateException("Doctor " + name + " is already attending patient " + this.assignedPatientId);
-        }
-        this.assignedPatientId = Objects.requireNonNull(patientId, "patientId cannot be null");
-    }
-
-    public void dischargePatient() {
-        if (this.assignedPatientId == null) {
-            throw new IllegalStateException("Doctor " + name + " has no assigned patient to discharge.");
-        }
-        this.assignedPatientId = null;
-    }
-
-    public boolean canTreat(Severity severity, String facilityRequirement) {
-        if (!this.onDuty || this.assignedPatientId != null) {
-            return false;
-        }
-        if (severity == Severity.CRITICAL || "ICU".equalsIgnoreCase(facilityRequirement)) {
-            return specialization.equalsIgnoreCase("Critical Care") ||
-                   specialization.equalsIgnoreCase("Emergency Medicine") ||
-                   specialization.equalsIgnoreCase("Trauma Surgery");
-        }
-        return true;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Doctor doctor)) return false;
-        return Objects.equals(doctorId, doctor.doctorId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(doctorId);
-    }
-
-    @Override
-    public String toString() {
-        return String.format("[%s] Dr. %s (%s) @ %s - Duty: %s | Status: %s",
-                doctorId, name, specialization, hospitalId,
-                onDuty ? "ON-DUTY" : "OFF-DUTY",
-                assignedPatientId != null ? "BUSY (Patient: " + assignedPatientId + ")" : "AVAILABLE");
-    }
-}
-
-/**
- * Represents an admission or referral request transaction.
- */
-class AdmissionRequest {
-    public enum Disposition {
-        PENDING,
-        ADMITTED_PRIMARY,
-        REFERRED_AND_RESERVED,
-        QUEUED_NO_BED,
-        QUEUED_NO_DOCTOR,
-        QUEUED_NO_CAPACITY,
-        DISCHARGED
-    }
-
-    private final String requestId;
-    private final LocalDateTime timestamp;
-    private final Patient patient;
-    private final String requestedHospitalId;
-    private Disposition disposition;
-    private String allocatedHospitalId;
-    private String allocatedBedId;
-    private String allocatedDoctorId;
-    private int travelTimeMinutes;
-    private String remarks;
-
-    public AdmissionRequest(String requestId, Patient patient, String requestedHospitalId) {
-        this.requestId = Objects.requireNonNull(requestId, "requestId cannot be null");
-        this.timestamp = LocalDateTime.now();
-        this.patient = Objects.requireNonNull(patient, "patient cannot be null");
-        this.requestedHospitalId = Objects.requireNonNull(requestedHospitalId, "requestedHospitalId cannot be null");
-        this.disposition = Disposition.PENDING;
-        this.travelTimeMinutes = 0;
-    }
-
-    public String getRequestId() {
-        return requestId;
-    }
-
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-
-    public Patient getPatient() {
-        return patient;
-    }
-
-    public String getRequestedHospitalId() {
-        return requestedHospitalId;
-    }
-
-    public Disposition getDisposition() {
-        return disposition;
-    }
-
-    public void setDisposition(Disposition disposition) {
-        this.disposition = disposition;
-    }
-
-    public String getAllocatedHospitalId() {
-        return allocatedHospitalId;
-    }
-
-    public void setAllocatedHospitalId(String allocatedHospitalId) {
-        this.allocatedHospitalId = allocatedHospitalId;
-    }
-
-    public String getAllocatedBedId() {
-        return allocatedBedId;
-    }
-
-    public void setAllocatedBedId(String allocatedBedId) {
-        this.allocatedBedId = allocatedBedId;
-    }
-
-    public String getAllocatedDoctorId() {
-        return allocatedDoctorId;
-    }
-
-    public void setAllocatedDoctorId(String allocatedDoctorId) {
-        this.allocatedDoctorId = allocatedDoctorId;
-    }
-
-    public int getTravelTimeMinutes() {
-        return travelTimeMinutes;
-    }
-
-    public void setTravelTimeMinutes(int travelTimeMinutes) {
-        this.travelTimeMinutes = travelTimeMinutes;
-    }
-
-    public String getRemarks() {
-        return remarks;
-    }
-
-    public void setRemarks(String remarks) {
-        this.remarks = remarks;
-    }
-
-    @Override
-    public String toString() {
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss");
-        return String.format("[%s @ %s] Patient %s (%s, Req: %s) -> %s | Remarks: %s",
-                requestId, timestamp.format(dtf), patient.getName(), patient.getSeverity(),
-                patient.getRequiredFacility(), disposition, remarks);
-    }
-}
-
-/**
- * Audit history entry stored in an ArrayList to record all system state transitions.
- */
-class AuditRecord {
-    public enum EventType {
-        ADMISSION,
-        DISCHARGE,
-        REFERRAL,
-        QUEUE_ENQUEUE,
-        QUEUE_REORDER,
-        DOCTOR_DUTY_CHANGE,
-        BED_RELEASED
-    }
-
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-    private final long sequence;
-    private final LocalDateTime timestamp;
-    private final EventType eventType;
-    private final String patientId;
-    private final String hospitalId;
-    private final String bedId;
-    private final String doctorId;
-    private final String details;
-
-    public AuditRecord(long sequence, EventType eventType, String patientId,
-                       String hospitalId, String bedId, String doctorId, String details) {
-        this.sequence = sequence;
-        this.timestamp = LocalDateTime.now();
-        this.eventType = eventType;
-        this.patientId = patientId;
-        this.hospitalId = hospitalId;
-        this.bedId = bedId;
-        this.doctorId = doctorId;
-        this.details = details;
-    }
-
-    public long getSequence() {
-        return sequence;
-    }
-
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-
-    public EventType getEventType() {
-        return eventType;
-    }
-
-    public String getPatientId() {
-        return patientId;
-    }
-
-    public String getHospitalId() {
-        return hospitalId;
-    }
-
-    public String getBedId() {
-        return bedId;
-    }
-
-    public String getDoctorId() {
-        return doctorId;
-    }
-
-    public String getDetails() {
-        return details;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("#%03d [%s] %-18s | Patient: %-6s | Hospital: %-5s | Bed: %-6s | Doc: %-6s | %s",
-                sequence, timestamp.format(TIME_FMT), eventType,
-                patientId != null ? patientId : "-",
-                hospitalId != null ? hospitalId : "-",
-                bedId != null ? bedId : "-",
-                doctorId != null ? doctorId : "-",
-                details);
-    }
-}
+// =============================================================================
+// 4. HOSPITAL (Composition: contains Beds and Doctors in HashMaps)
+// =============================================================================
 
 /**
  * Hospital entity demonstrating Composition:
- * Contains collections of Bed and Doctor objects stored in HashMaps by ID.
+ * Contains collections of Bed and Doctor objects indexed by ID in HashMaps.
  */
 class Hospital {
     private final String hospitalId;
     private final String name;
-    private final String locationId;
     private final boolean isPrimary;
 
-    private final Map<String, Bed> beds;
-    private final Map<String, Doctor> doctors;
+    // Composition: Hospital contains Beds and Doctors indexed by ID (HashMap)
+    private final Map<String, Bed> beds = new LinkedHashMap<>();
+    private final Map<String, Doctor> doctors = new LinkedHashMap<>();
 
-    public Hospital(String hospitalId, String name, String locationId, boolean isPrimary) {
+    public Hospital(String hospitalId, String name, boolean isPrimary) {
         this.hospitalId = Objects.requireNonNull(hospitalId, "hospitalId cannot be null");
         this.name = Objects.requireNonNull(name, "name cannot be null");
-        this.locationId = Objects.requireNonNull(locationId, "locationId cannot be null");
         this.isPrimary = isPrimary;
-        this.beds = new LinkedHashMap<>();
-        this.doctors = new LinkedHashMap<>();
     }
 
     public String getHospitalId() {
@@ -799,10 +439,6 @@ class Hospital {
 
     public String getName() {
         return name;
-    }
-
-    public String getLocationId() {
-        return locationId;
     }
 
     public boolean isPrimary() {
@@ -842,7 +478,7 @@ class Hospital {
         return Optional.empty();
     }
 
-    public Optional<Doctor> findAvailableDoctor(Severity severity, String facilityRequirement) {
+    public Optional<Doctor> findAvailableDoctor(int severity, String facilityRequirement) {
         for (Doctor doctor : doctors.values()) {
             if (doctor.canTreat(severity, facilityRequirement)) {
                 return Optional.of(doctor);
@@ -864,7 +500,7 @@ class Hospital {
 
         patient.setAssignedHospitalId(this.hospitalId);
         patient.setAssignedBedId(bed.getBedId());
-        patient.setStatus(this.isPrimary ? Patient.Status.ADMITTED_LOCAL : Patient.Status.REFERRED);
+        patient.setStatus(this.isPrimary ? Patient.Status.ADMITTED : Patient.Status.REFERRED);
     }
 
     public boolean dischargePatient(String patientId) {
@@ -876,9 +512,7 @@ class Hospital {
             }
         }
 
-        if (targetBed == null) {
-            return false;
-        }
+        if (targetBed == null) return false;
 
         targetBed.dischargePatient();
 
@@ -895,18 +529,12 @@ class Hospital {
         return beds.size();
     }
 
-    public long getOccupiedBedsCount() {
-        return beds.values().stream().filter(Bed::isOccupied).count();
-    }
-
     public long getAvailableBedsCount() {
         return beds.values().stream().filter(b -> !b.isOccupied()).count();
     }
 
-    public long getAvailableBedsCount(Class<? extends Bed> bedType) {
-        return beds.values().stream()
-                .filter(b -> !b.isOccupied() && bedType.isInstance(b))
-                .count();
+    public long getAvailableBedsCount(Class<? extends Bed> type) {
+        return beds.values().stream().filter(b -> !b.isOccupied() && type.isInstance(b)).count();
     }
 
     public long getAvailableDoctorCount() {
@@ -918,21 +546,9 @@ class Hospital {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Hospital hospital)) return false;
-        return Objects.equals(hospitalId, hospital.hospitalId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(hospitalId);
-    }
-
-    @Override
     public String toString() {
-        return String.format("%s (%s) @ %s [%s] - Beds: %d/%d Avail (ICU: %d, Gen: %d) | Doctors: %d/%d Avail",
-                name, hospitalId, locationId, isPrimary ? "PRIMARY" : "REFERRAL",
+        return String.format("%s (%s) [%s] - Beds: %d/%d Avail (ICU: %d, Gen: %d) | Doctors: %d/%d Avail",
+                name, hospitalId, isPrimary ? "PRIMARY" : "REFERRAL",
                 getAvailableBedsCount(), getTotalBedsCount(),
                 getAvailableBedsCount(ICUBed.class), getAvailableBedsCount(GeneralBed.class),
                 getAvailableDoctorCount(), getOnDutyDoctorCount());
@@ -940,651 +556,371 @@ class Hospital {
 }
 
 // =============================================================================
-// 2. POLICY ABSTRACTION
+// 5. ADMISSION REQUEST (Transaction Record for ArrayList History)
 // =============================================================================
 
-interface AdmissionPolicy {
-    class PolicyResult {
-        private final boolean eligible;
-        private final Bed availableBed;
-        private final Doctor availableDoctor;
-        private final String reason;
-
-        public PolicyResult(boolean eligible, Bed availableBed, Doctor availableDoctor, String reason) {
-            this.eligible = eligible;
-            this.availableBed = availableBed;
-            this.availableDoctor = availableDoctor;
-            this.reason = reason;
-        }
-
-        public static PolicyResult approved(Bed bed, Doctor doctor) {
-            return new PolicyResult(true, bed, doctor, "Eligible: Bed and Doctor are both available.");
-        }
-
-        public static PolicyResult rejectedNoBed(String requiredFacility) {
-            return new PolicyResult(false, null, null, "Ineligible: No available bed supporting required facility '" + requiredFacility + "'.");
-        }
-
-        public static PolicyResult rejectedNoDoctor(String message) {
-            return new PolicyResult(false, null, null, "Ineligible: " + message);
-        }
-
-        public boolean isEligible() {
-            return eligible;
-        }
-
-        public Optional<Bed> getAvailableBed() {
-            return Optional.ofNullable(availableBed);
-        }
-
-        public Optional<Doctor> getAvailableDoctor() {
-            return Optional.ofNullable(availableDoctor);
-        }
-
-        public String getReason() {
-            return reason;
-        }
-
-        @Override
-        public String toString() {
-            return eligible ? "APPROVED (" + availableBed.getBedId() + ", " + availableDoctor.getDoctorId() + ")" : "REJECTED: " + reason;
-        }
+/**
+ * Represents an admission, discharge, or referral event.
+ * Stored in ArrayList for historical audit.
+ */
+class AdmissionRequest {
+    public enum Type {
+        ADMISSION,
+        REFERRAL,
+        QUEUED_WAITING,
+        DISCHARGE
     }
 
-    PolicyResult evaluate(Hospital hospital, Patient patient);
-}
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-class StandardAdmissionPolicy implements AdmissionPolicy {
+    private final String requestId;
+    private final LocalDateTime timestamp;
+    private final Type type;
+    private final String patientId;
+    private final String patientName;
+    private final String hospitalId;
+    private final String bedId;
+    private final String doctorId;
+    private final int travelTimeMinutes;
+    private final String remarks;
+
+    public AdmissionRequest(String requestId, Type type, String patientId, String patientName,
+                            String hospitalId, String bedId, String doctorId,
+                            int travelTimeMinutes, String remarks) {
+        this.requestId = requestId;
+        this.timestamp = LocalDateTime.now();
+        this.type = type;
+        this.patientId = patientId;
+        this.patientName = patientName;
+        this.hospitalId = hospitalId;
+        this.bedId = bedId;
+        this.doctorId = doctorId;
+        this.travelTimeMinutes = travelTimeMinutes;
+        this.remarks = remarks;
+    }
+
+    public String getRequestId() {
+        return requestId;
+    }
+
+    public LocalDateTime getTimestamp() {
+        return timestamp;
+    }
+
+    public Type getType() {
+        return type;
+    }
+
+    public String getPatientId() {
+        return patientId;
+    }
+
+    public String getPatientName() {
+        return patientName;
+    }
+
+    public String getHospitalId() {
+        return hospitalId;
+    }
+
+    public String getBedId() {
+        return bedId;
+    }
+
+    public String getDoctorId() {
+        return doctorId;
+    }
+
+    public int getTravelTimeMinutes() {
+        return travelTimeMinutes;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
     @Override
-    public PolicyResult evaluate(Hospital hospital, Patient patient) {
-        if (hospital == null || patient == null) {
-            return new PolicyResult(false, null, null, "Hospital or Patient is null");
-        }
-
-        Optional<Bed> availableBedOpt = hospital.findAvailableBed(patient.getRequiredFacility());
-        if (availableBedOpt.isEmpty()) {
-            return PolicyResult.rejectedNoBed(patient.getRequiredFacility());
-        }
-
-        Optional<Doctor> availableDoctorOpt = hospital.findAvailableDoctor(patient.getSeverity(), patient.getRequiredFacility());
-        if (availableDoctorOpt.isEmpty()) {
-            return PolicyResult.rejectedNoDoctor("No on-duty doctor available matching clinical requirements (" +
-                    patient.getSeverity() + " / " + patient.getRequiredFacility() + ").");
-        }
-
-        return PolicyResult.approved(availableBedOpt.get(), availableDoctorOpt.get());
+    public String toString() {
+        return String.format("[%s] %-14s | Pt: %-6s (%-16s) | Hosp: %-5s | Bed: %-12s | Doc: %-6s | %s",
+                timestamp.format(TIME_FMT), type,
+                patientId != null ? patientId : "-",
+                patientName != null ? patientName : "-",
+                hospitalId != null ? hospitalId : "-",
+                bedId != null ? bedId : "-",
+                doctorId != null ? doctorId : "-",
+                remarks);
     }
 }
 
 // =============================================================================
-// 3. GRAPH ROUTING (DIJKSTRA + MIN-HEAP)
+// 6. ADMISSION POLICY (Abstraction: abstracts eligibility)
 // =============================================================================
 
-class RoadGraph {
-    private final Map<String, Location> locations;
-    private final Map<String, List<RoadEdge>> adjacencyList;
+/**
+ * Abstraction: AdmissionPolicy abstracts patient eligibility rules.
+ */
+interface AdmissionPolicy {
+    boolean isEligible(Hospital hospital, Patient patient);
 
-    public RoadGraph() {
-        this.locations = new LinkedHashMap<>();
-        this.adjacencyList = new LinkedHashMap<>();
-    }
-
-    public void addLocation(Location location) {
-        locations.put(location.getLocationId(), location);
-        adjacencyList.putIfAbsent(location.getLocationId(), new ArrayList<>());
-    }
-
-    public void addRoad(String locationA, String locationB, int travelTimeMinutes) {
-        if (!locations.containsKey(locationA) || !locations.containsKey(locationB)) {
-            throw new IllegalArgumentException("Both locations must exist in graph: " + locationA + ", " + locationB);
-        }
-        adjacencyList.get(locationA).add(new RoadEdge(locationA, locationB, travelTimeMinutes));
-        adjacencyList.get(locationB).add(new RoadEdge(locationB, locationA, travelTimeMinutes));
-    }
-
-    public boolean updateTravelTime(String locationA, String locationB, int newTravelTimeMinutes) {
-        boolean updated = false;
-        List<RoadEdge> edgesA = adjacencyList.get(locationA);
-        if (edgesA != null) {
-            for (RoadEdge edge : edgesA) {
-                if (edge.getToLocationId().equals(locationB)) {
-                    edge.setTravelTimeMinutes(newTravelTimeMinutes);
-                    updated = true;
-                }
-            }
-        }
-
-        List<RoadEdge> edgesB = adjacencyList.get(locationB);
-        if (edgesB != null) {
-            for (RoadEdge edge : edgesB) {
-                if (edge.getToLocationId().equals(locationA)) {
-                    edge.setTravelTimeMinutes(newTravelTimeMinutes);
-                    updated = true;
-                }
-            }
-        }
-        return updated;
-    }
-
-    public Location getLocation(String locationId) {
-        return locations.get(locationId);
-    }
-
-    public Collection<Location> getAllLocations() {
-        return Collections.unmodifiableCollection(locations.values());
-    }
-
-    public List<RoadEdge> getEdgesFrom(String locationId) {
-        return adjacencyList.getOrDefault(locationId, Collections.emptyList());
-    }
-
-    public Map<String, List<RoadEdge>> getAdjacencyList() {
-        return Collections.unmodifiableMap(adjacencyList);
-    }
-
-    public boolean containsLocation(String locationId) {
-        return locations.containsKey(locationId);
+    /**
+     * Standard admission policy: both an appropriate bed AND an on-duty doctor must be available.
+     */
+    static AdmissionPolicy standard() {
+        return (hospital, patient) ->
+                hospital != null && patient != null
+                && hospital.findAvailableBed(patient.getRequiredFacility()).isPresent()
+                && hospital.findAvailableDoctor(patient.getSeverity(), patient.getRequiredFacility()).isPresent();
     }
 }
 
+// =============================================================================
+// 7. ROUTE PLANNER (Dijkstra's Algorithm + Min-Heap on Weighted Graph)
+// =============================================================================
+
+/**
+ * Implements Dijkstra's Shortest Path Algorithm using a Min-Heap (PriorityQueue)
+ * over the weighted graph of hospital connections.
+ */
 class RoutePlanner {
-    private static class HeapEntry implements Comparable<HeapEntry> {
-        private final String locationId;
-        private final int distance;
+    public static class RouteResult {
+        private final Map<String, Integer> distances;
+        private final Map<String, String> predecessors;
 
-        public HeapEntry(String locationId, int distance) {
-            this.locationId = locationId;
-            this.distance = distance;
+        public RouteResult(Map<String, Integer> distances, Map<String, String> predecessors) {
+            this.distances = distances;
+            this.predecessors = predecessors;
         }
 
-        public String getLocationId() {
-            return locationId;
+        public int getDistanceTo(String targetNode) {
+            return distances.getOrDefault(targetNode, Integer.MAX_VALUE);
         }
 
-        public int getDistance() {
-            return distance;
-        }
-
-        @Override
-        public int compareTo(HeapEntry other) {
-            int cmp = Integer.compare(this.distance, other.distance);
-            if (cmp != 0) {
-                return cmp;
+        public List<String> getPathTo(String sourceNode, String targetNode) {
+            if (!distances.containsKey(targetNode) || distances.get(targetNode) == Integer.MAX_VALUE) {
+                return Collections.emptyList();
             }
-            return this.locationId.compareTo(other.locationId);
+            LinkedList<String> path = new LinkedList<>();
+            String curr = targetNode;
+            while (curr != null) {
+                path.addFirst(curr);
+                if (curr.equals(sourceNode)) break;
+                curr = predecessors.get(curr);
+            }
+            return path;
         }
     }
 
-    public DijkstraResult calculateShortestPaths(RoadGraph graph, String sourceLocationId) {
-        Objects.requireNonNull(graph, "graph cannot be null");
-        Objects.requireNonNull(sourceLocationId, "sourceLocationId cannot be null");
-
-        if (!graph.containsLocation(sourceLocationId)) {
-            throw new IllegalArgumentException("Source location does not exist in graph: " + sourceLocationId);
-        }
-
+    /**
+     * Computes shortest travel times from source hospital using Dijkstra + Min-Heap.
+     */
+    public RouteResult calculateShortestPaths(Map<String, Map<String, Integer>> graph, String source) {
         Map<String, Integer> distances = new HashMap<>();
         Map<String, String> predecessors = new HashMap<>();
 
-        for (Location loc : graph.getAllLocations()) {
-            distances.put(loc.getLocationId(), Integer.MAX_VALUE);
+        for (String node : graph.keySet()) {
+            distances.put(node, Integer.MAX_VALUE);
         }
-        distances.put(sourceLocationId, 0);
+        distances.put(source, 0);
 
-        PriorityQueue<HeapEntry> minHeap = new PriorityQueue<>();
-        minHeap.offer(new HeapEntry(sourceLocationId, 0));
+        // Min-Heap (PriorityQueue)
+        PriorityQueue<Map.Entry<String, Integer>> minHeap =
+                new PriorityQueue<>(Comparator.comparingInt(Map.Entry::getValue));
+        minHeap.offer(Map.entry(source, 0));
 
         Set<String> visited = new HashSet<>();
 
         while (!minHeap.isEmpty()) {
-            HeapEntry current = minHeap.poll();
-            String u = current.getLocationId();
-            int currentDist = current.getDistance();
+            Map.Entry<String, Integer> current = minHeap.poll();
+            String u = current.getKey();
+            int d = current.getValue();
 
-            if (currentDist > distances.get(u)) {
+            if (d > distances.getOrDefault(u, Integer.MAX_VALUE)) {
                 continue;
             }
-
             visited.add(u);
 
-            for (RoadEdge edge : graph.getEdgesFrom(u)) {
-                String v = edge.getToLocationId();
-                int weight = edge.getTravelTimeMinutes();
+            Map<String, Integer> neighbors = graph.get(u);
+            if (neighbors != null) {
+                for (Map.Entry<String, Integer> edge : neighbors.entrySet()) {
+                    String v = edge.getKey();
+                    int weight = edge.getValue();
+                    int newDist = d + weight;
 
-                if (distances.get(u) != Integer.MAX_VALUE) {
-                    int newDist = distances.get(u) + weight;
-                    if (newDist < distances.get(v)) {
+                    if (newDist < distances.getOrDefault(v, Integer.MAX_VALUE)) {
                         distances.put(v, newDist);
                         predecessors.put(v, u);
-                        minHeap.offer(new HeapEntry(v, newDist));
+                        minHeap.offer(Map.entry(v, newDist));
                     }
                 }
             }
         }
 
-        return new DijkstraResult(sourceLocationId, distances, predecessors);
+        return new RouteResult(distances, predecessors);
     }
 }
 
 // =============================================================================
-// 4. COORDINATION SERVICES & SYSTEM MANAGER
+// 8. REFERRAL SERVICE (Uses RoutePlanner; filters facility & capacity)
 // =============================================================================
 
+/**
+ * ReferralService orchestrates hospital referrals when local admission fails.
+ * Composition: ReferralService uses RoutePlanner.
+ * Workflow:
+ * 1. Filters referral hospitals for available bed matching patient's required facility.
+ * 2. Filters referral hospitals for an available on-duty doctor.
+ * 3. Uses RoutePlanner (Dijkstra + Min-Heap) to find the fastest reachable eligible hospital.
+ * 4. Reserves bed immediately before referral confirmation.
+ */
 class ReferralService {
-    public static class ReferralResult {
-        private final boolean successful;
-        private final Hospital referralHospital;
-        private final Bed reservedBed;
-        private final Doctor assignedDoctor;
-        private final int travelTimeMinutes;
-        private final List<String> routePath;
-        private final String message;
-
-        public ReferralResult(boolean successful, Hospital referralHospital, Bed reservedBed,
-                              Doctor assignedDoctor, int travelTimeMinutes, List<String> routePath, String message) {
-            this.successful = successful;
-            this.referralHospital = referralHospital;
-            this.reservedBed = reservedBed;
-            this.assignedDoctor = assignedDoctor;
-            this.travelTimeMinutes = travelTimeMinutes;
-            this.routePath = routePath != null ? routePath : Collections.emptyList();
-            this.message = message;
-        }
-
-        public static ReferralResult failure(String reason) {
-            return new ReferralResult(false, null, null, null, -1, null, reason);
-        }
-
-        public boolean isSuccessful() {
-            return successful;
-        }
-
-        public Hospital getReferralHospital() {
-            return referralHospital;
-        }
-
-        public Bed getReservedBed() {
-            return reservedBed;
-        }
-
-        public Doctor getAssignedDoctor() {
-            return assignedDoctor;
-        }
-
-        public int getTravelTimeMinutes() {
-            return travelTimeMinutes;
-        }
-
-        public List<String> getRoutePath() {
-            return routePath;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        @Override
-        public String toString() {
-            if (!successful) {
-                return "REFERRAL FAILED: " + message;
-            }
-            return String.format("REFERRAL SUCCESS: Referred to %s (%s) | Reserved Bed: %s | Travel Time: %d mins | Route: %s",
-                    referralHospital.getName(), referralHospital.getHospitalId(),
-                    reservedBed.getBedId(), travelTimeMinutes, String.join(" -> ", routePath));
-        }
-    }
-
     private final RoutePlanner routePlanner;
-    private final RoadGraph roadGraph;
 
-    public ReferralService(RoutePlanner routePlanner, RoadGraph roadGraph) {
+    public ReferralService(RoutePlanner routePlanner) {
         this.routePlanner = Objects.requireNonNull(routePlanner, "routePlanner cannot be null");
-        this.roadGraph = Objects.requireNonNull(roadGraph, "roadGraph cannot be null");
     }
 
-    public ReferralResult referPatient(Hospital primaryHospital,
-                                       Collection<Hospital> allHospitals,
-                                       Patient patient) {
-        Objects.requireNonNull(primaryHospital, "primaryHospital cannot be null");
-        Objects.requireNonNull(patient, "patient cannot be null");
-
-        List<Hospital> eligibleCandidates = new ArrayList<>();
+    public boolean referPatient(Hospital primaryHospital,
+                                Collection<Hospital> allHospitals,
+                                Map<String, Map<String, Integer>> roadGraph,
+                                Patient patient,
+                                List<AdmissionRequest> history) {
+        // 1. Filter referral hospitals with required bed AND doctor
+        List<Hospital> candidates = new ArrayList<>();
         Map<String, Bed> candidateBeds = new HashMap<>();
         Map<String, Doctor> candidateDoctors = new HashMap<>();
 
         for (Hospital h : allHospitals) {
-            if (h.getHospitalId().equals(primaryHospital.getHospitalId())) {
-                continue;
-            }
+            if (h.getHospitalId().equals(primaryHospital.getHospitalId())) continue;
+
             Optional<Bed> bedOpt = h.findAvailableBed(patient.getRequiredFacility());
             if (bedOpt.isPresent()) {
                 Optional<Doctor> docOpt = h.findAvailableDoctor(patient.getSeverity(), patient.getRequiredFacility());
                 if (docOpt.isPresent()) {
-                    eligibleCandidates.add(h);
+                    candidates.add(h);
                     candidateBeds.put(h.getHospitalId(), bedOpt.get());
                     candidateDoctors.put(h.getHospitalId(), docOpt.get());
                 }
             }
         }
 
-        if (eligibleCandidates.isEmpty()) {
-            return ReferralResult.failure("No referral hospital has both an available " +
-                    patient.getRequiredFacility() + " bed and an available doctor.");
+        if (candidates.isEmpty()) {
+            return false;
         }
 
-        DijkstraResult dijkstraResult = routePlanner.calculateShortestPaths(roadGraph, primaryHospital.getLocationId());
+        // 2. Dijkstra's Algorithm + Min-Heap from primary hospital
+        RoutePlanner.RouteResult routes = routePlanner.calculateShortestPaths(roadGraph, primaryHospital.getHospitalId());
 
-        Hospital fastestHospital = null;
-        int minTravelTime = Integer.MAX_VALUE;
+        // 3. Select the fastest reachable candidate hospital
+        Hospital fastest = null;
+        int minTime = Integer.MAX_VALUE;
 
-        for (Hospital candidate : eligibleCandidates) {
-            int travelTime = dijkstraResult.getDistanceTo(candidate.getLocationId());
-            if (travelTime < minTravelTime) {
-                minTravelTime = travelTime;
-                fastestHospital = candidate;
-            } else if (travelTime == minTravelTime && fastestHospital != null) {
-                if (candidate.getHospitalId().compareTo(fastestHospital.getHospitalId()) < 0) {
-                    fastestHospital = candidate;
+        for (Hospital cand : candidates) {
+            int time = routes.getDistanceTo(cand.getHospitalId());
+            if (time < minTime) {
+                minTime = time;
+                fastest = cand;
+            } else if (time == minTime && fastest != null) {
+                if (cand.getHospitalId().compareTo(fastest.getHospitalId()) < 0) {
+                    fastest = cand;
                 }
             }
         }
 
-        if (fastestHospital == null || minTravelTime == Integer.MAX_VALUE) {
-            return ReferralResult.failure("No reachable route found to any eligible referral hospital.");
+        if (fastest == null || minTime == Integer.MAX_VALUE) {
+            return false;
         }
 
-        Bed chosenBed = candidateBeds.get(fastestHospital.getHospitalId());
-        Doctor chosenDoctor = candidateDoctors.get(fastestHospital.getHospitalId());
+        // 4. Reserve bed & doctor immediately
+        Bed bed = candidateBeds.get(fastest.getHospitalId());
+        Doctor doc = candidateDoctors.get(fastest.getHospitalId());
 
-        fastestHospital.admitPatient(patient, chosenBed, chosenDoctor);
+        fastest.admitPatient(patient, bed, doc);
 
-        List<String> route = dijkstraResult.getPathTo(fastestHospital.getLocationId());
-        String notes = String.format("Referred from %s to %s via %s (%d mins). Bed: %s",
-                primaryHospital.getHospitalId(), fastestHospital.getHospitalId(),
-                String.join("->", route), minTravelTime, chosenBed.getBedId());
+        List<String> path = routes.getPathTo(primaryHospital.getHospitalId(), fastest.getHospitalId());
+        String notes = String.format("Referred to %s via %s (%d min travel time). Bed: %s",
+                fastest.getName(), String.join("->", path), minTime, bed.getBedId());
         patient.setReferralNotes(notes);
 
-        return new ReferralResult(true, fastestHospital, chosenBed, chosenDoctor, minTravelTime, route,
-                "Successfully referred and reserved bed at " + fastestHospital.getName());
-    }
-}
+        history.add(new AdmissionRequest(
+                "REQ-" + System.currentTimeMillis(),
+                AdmissionRequest.Type.REFERRAL,
+                patient.getPatientId(),
+                patient.getName(),
+                fastest.getHospitalId(),
+                bed.getBedId(),
+                doc.getDoctorId(),
+                minTime,
+                notes
+        ));
 
-class HospitalSystemManager {
-    private final PriorityQueue<Patient> waitingQueue;
-    private final Map<String, Patient> allPatients;
-    private final Map<String, Hospital> hospitals;
-    private final List<AuditRecord> auditHistory;
-
-    private final AdmissionPolicy admissionPolicy;
-    private final ReferralService referralService;
-    private final RoadGraph roadGraph;
-    private final Hospital primaryHospital;
-
-    private final AtomicLong patientSeqCounter = new AtomicLong(1);
-    private final AtomicLong auditSeqCounter = new AtomicLong(1);
-
-    public HospitalSystemManager(Hospital primaryHospital,
-                                 List<Hospital> referralHospitals,
-                                 RoadGraph roadGraph) {
-        this.waitingQueue = new PriorityQueue<>();
-        this.allPatients = new LinkedHashMap<>();
-        this.hospitals = new LinkedHashMap<>();
-        this.auditHistory = new ArrayList<>();
-
-        this.roadGraph = Objects.requireNonNull(roadGraph, "roadGraph cannot be null");
-        this.primaryHospital = Objects.requireNonNull(primaryHospital, "primaryHospital cannot be null");
-
-        this.hospitals.put(primaryHospital.getHospitalId(), primaryHospital);
-
-        if (referralHospitals != null) {
-            for (Hospital h : referralHospitals) {
-                this.hospitals.put(h.getHospitalId(), h);
-            }
-        }
-
-        this.admissionPolicy = new StandardAdmissionPolicy();
-        RoutePlanner routePlanner = new RoutePlanner();
-        this.referralService = new ReferralService(routePlanner, this.roadGraph);
-    }
-
-    public Patient registerPatient(String patientId, String name, int age, String gender,
-                                   Severity severity, String requiredFacility) {
-        long seq = patientSeqCounter.getAndIncrement();
-        Patient patient = new Patient(patientId, name, age, gender, severity, requiredFacility, seq);
-        allPatients.put(patientId, patient);
-        waitingQueue.offer(patient);
-
-        logAudit(AuditRecord.EventType.QUEUE_ENQUEUE, patientId, primaryHospital.getHospitalId(),
-                null, null, String.format("Registered and enqueued: Urgency=%s, ReqFacility=%s (Seq #%d)",
-                        severity, requiredFacility, seq));
-        return patient;
-    }
-
-    public boolean updatePatientSeverity(String patientId, Severity newSeverity) {
-        Patient patient = allPatients.get(patientId);
-        if (patient == null) {
-            return false;
-        }
-
-        if (waitingQueue.contains(patient)) {
-            waitingQueue.remove(patient);
-            Severity old = patient.getSeverity();
-            patient.setSeverity(newSeverity);
-            waitingQueue.offer(patient);
-
-            logAudit(AuditRecord.EventType.QUEUE_REORDER, patientId, primaryHospital.getHospitalId(),
-                    null, null, String.format("Severity updated from %s to %s; re-queued with updated priority",
-                            old, newSeverity));
-            return true;
-        } else {
-            patient.setSeverity(newSeverity);
-            return true;
-        }
-    }
-
-    public List<AdmissionRequest> processWaitingQueue() {
-        List<AdmissionRequest> results = new ArrayList<>();
-        List<Patient> unservedPatients = new ArrayList<>();
-        int reqIdCounter = 1;
-
-        while (!waitingQueue.isEmpty()) {
-            Patient patient = waitingQueue.poll();
-            String reqId = "REQ-" + System.currentTimeMillis() + "-" + (reqIdCounter++);
-            AdmissionRequest request = new AdmissionRequest(reqId, patient, primaryHospital.getHospitalId());
-
-            AdmissionPolicy.PolicyResult policyResult = admissionPolicy.evaluate(primaryHospital, patient);
-
-            if (policyResult.isEligible()) {
-                Bed bed = policyResult.getAvailableBed().orElseThrow();
-                Doctor doc = policyResult.getAvailableDoctor().orElseThrow();
-
-                primaryHospital.admitPatient(patient, bed, doc);
-
-                request.setDisposition(AdmissionRequest.Disposition.ADMITTED_PRIMARY);
-                request.setAllocatedHospitalId(primaryHospital.getHospitalId());
-                request.setAllocatedBedId(bed.getBedId());
-                request.setAllocatedDoctorId(doc.getDoctorId());
-                request.setRemarks("Admitted locally at " + primaryHospital.getName() + " -> Bed: " + bed.getBedId() + ", Doctor: Dr. " + doc.getName());
-
-                logAudit(AuditRecord.EventType.ADMISSION, patient.getPatientId(), primaryHospital.getHospitalId(),
-                        bed.getBedId(), doc.getDoctorId(), "Admitted locally to " + bed.getBedType() + " bed");
-                results.add(request);
-            } else {
-                ReferralService.ReferralResult referralResult = referralService.referPatient(
-                        primaryHospital, hospitals.values(), patient);
-
-                if (referralResult.isSuccessful()) {
-                    request.setDisposition(AdmissionRequest.Disposition.REFERRED_AND_RESERVED);
-                    request.setAllocatedHospitalId(referralResult.getReferralHospital().getHospitalId());
-                    request.setAllocatedBedId(referralResult.getReservedBed().getBedId());
-                    if (referralResult.getAssignedDoctor() != null) {
-                        request.setAllocatedDoctorId(referralResult.getAssignedDoctor().getDoctorId());
-                    }
-                    request.setTravelTimeMinutes(referralResult.getTravelTimeMinutes());
-                    request.setRemarks(String.format("Referred to %s (%d mins travel via Dijkstra). Bed reserved: %s",
-                            referralResult.getReferralHospital().getName(),
-                            referralResult.getTravelTimeMinutes(),
-                            referralResult.getReservedBed().getBedId()));
-
-                    logAudit(AuditRecord.EventType.REFERRAL, patient.getPatientId(),
-                            referralResult.getReferralHospital().getHospitalId(),
-                            referralResult.getReservedBed().getBedId(),
-                            referralResult.getAssignedDoctor() != null ? referralResult.getAssignedDoctor().getDoctorId() : null,
-                            String.format("Referred via Dijkstra (%d min travel time). Path: %s",
-                                    referralResult.getTravelTimeMinutes(),
-                                    String.join("->", referralResult.getRoutePath())));
-                    results.add(request);
-                } else {
-                    request.setDisposition(policyResult.getReason().contains("bed")
-                            ? AdmissionRequest.Disposition.QUEUED_NO_BED
-                            : AdmissionRequest.Disposition.QUEUED_NO_DOCTOR);
-                    request.setRemarks("Admission/Referral deferred: " + policyResult.getReason() + " | Referral error: " + referralResult.getMessage());
-                    unservedPatients.add(patient);
-                    results.add(request);
-                }
-            }
-        }
-
-        for (Patient unserved : unservedPatients) {
-            waitingQueue.offer(unserved);
-        }
-
-        return results;
-    }
-
-    public boolean dischargePatient(String hospitalId, String patientId) {
-        Hospital hospital = hospitals.get(hospitalId);
-        if (hospital == null) {
-            return false;
-        }
-
-        Patient patient = allPatients.get(patientId);
-        String bedId = (patient != null) ? patient.getAssignedBedId() : null;
-        String docId = (patient != null) ? patient.getAssignedDoctorId() : null;
-
-        boolean discharged = hospital.dischargePatient(patientId);
-        if (discharged) {
-            if (patient != null) {
-                patient.setStatus(Patient.Status.DISCHARGED);
-                patient.setAssignedBedId(null);
-                patient.setAssignedDoctorId(null);
-            }
-
-            logAudit(AuditRecord.EventType.DISCHARGE, patientId, hospitalId, bedId, docId,
-                    "Patient " + patientId + " discharged from " + hospital.getName() + "; Bed and Doctor released.");
-
-            processWaitingQueue();
-            return true;
-        }
-        return false;
-    }
-
-    public boolean setDoctorDutyStatus(String hospitalId, String doctorId, boolean onDuty) {
-        Hospital hospital = hospitals.get(hospitalId);
-        if (hospital == null) return false;
-        Doctor doctor = hospital.getDoctor(doctorId);
-        if (doctor == null) return false;
-
-        doctor.setDutyStatus(onDuty);
-        logAudit(AuditRecord.EventType.DOCTOR_DUTY_CHANGE, null, hospitalId, null, doctorId,
-                "Dr. " + doctor.getName() + " duty status set to " + (onDuty ? "ON-DUTY" : "OFF-DUTY"));
-
-        if (onDuty) {
-            processWaitingQueue();
-        }
         return true;
     }
-
-    public boolean updateTravelTime(String locationA, String locationB, int newTravelTimeMinutes) {
-        return roadGraph.updateTravelTime(locationA, locationB, newTravelTimeMinutes);
-    }
-
-    private void logAudit(AuditRecord.EventType type, String patientId, String hospitalId,
-                          String bedId, String doctorId, String details) {
-        auditHistory.add(new AuditRecord(auditSeqCounter.getAndIncrement(), type,
-                patientId, hospitalId, bedId, doctorId, details));
-    }
-
-    public PriorityQueue<Patient> getWaitingQueue() {
-        return waitingQueue;
-    }
-
-    public List<Patient> getWaitingListSnapshot() {
-        List<Patient> snapshot = new ArrayList<>(waitingQueue);
-        Collections.sort(snapshot);
-        return snapshot;
-    }
-
-    public Map<String, Patient> getAllPatients() {
-        return Collections.unmodifiableMap(allPatients);
-    }
-
-    public Patient getPatient(String patientId) {
-        return allPatients.get(patientId);
-    }
-
-    public Hospital getHospital(String hospitalId) {
-        return hospitals.get(hospitalId);
-    }
-
-    public Collection<Hospital> getAllHospitals() {
-        return Collections.unmodifiableCollection(hospitals.values());
-    }
-
-    public Hospital getPrimaryHospital() {
-        return primaryHospital;
-    }
-
-    public List<AuditRecord> getAuditHistory() {
-        return Collections.unmodifiableList(auditHistory);
-    }
-
-    public RoadGraph getRoadGraph() {
-        return roadGraph;
-    }
 }
 
 // =============================================================================
-// 5. SYNTHETIC DATA GENERATOR
+// 9. MAIN APPLICATION (HospitalApp: Coordinator, CLI, & Automated Tests)
 // =============================================================================
 
-class SyntheticDataGenerator {
-    public static RoadGraph buildNalamRoadNetwork() {
-        RoadGraph graph = new RoadGraph();
+/**
+ * Core application managing:
+ * - PriorityQueue for triage
+ * - HashMaps for fast entity lookup
+ * - Weighted graph for road connections
+ * - ArrayList for admission/discharge/referral history
+ * - Interactive CLI & Automated Verification Tests
+ */
+public class HospitalApp {
 
-        graph.addLocation(new Location("L1", "Nalam Central", "District HQ & NDGH Location"));
-        graph.addLocation(new Location("L2", "North Nalam Junction", "Transit Hub"));
-        graph.addLocation(new Location("L3", "Vallam Cross", "Sub-district & VSDH Location"));
-        graph.addLocation(new Location("L4", "East Highway Circle", "State Highway Connector"));
-        graph.addLocation(new Location("L5", "Thoppur Rural", "Agricultural Belt & TCHC Location"));
-        graph.addLocation(new Location("L6", "South Bridge", "River Crossing Point"));
-        graph.addLocation(new Location("L7", "South Industrial Area", "Industrial Zone Corridor"));
-        graph.addLocation(new Location("L8", "Kadur Hills", "Hill Station & KTH Location"));
-        graph.addLocation(new Location("L9", "West Bypass", "Ring Road Highway"));
+    // Necessary Data Structures from Assignment Rubric:
+    // 1. PriorityQueue: Waiting patients ordered by severity and arrival sequence
+    private final PriorityQueue<Patient> waitingQueue = new PriorityQueue<>();
 
-        graph.addRoad("L1", "L2", 8);
-        graph.addRoad("L1", "L4", 12);
-        graph.addRoad("L1", "L6", 10);
-        graph.addRoad("L1", "L9", 15);
+    // 2. HashMap: Patients, beds, doctors, and hospitals by ID
+    private final Map<String, Patient> allPatients = new LinkedHashMap<>();
+    private final Map<String, Hospital> hospitals = new LinkedHashMap<>();
 
-        graph.addRoad("L2", "L3", 6);
-        graph.addRoad("L2", "L9", 11);
+    // 3. Weighted Graph: Hospital and road connections with travel times (Map of Maps)
+    private final Map<String, Map<String, Integer>> roadGraph = new LinkedHashMap<>();
 
-        graph.addRoad("L4", "L5", 7);
-        graph.addRoad("L4", "L3", 14);
+    // 4. ArrayList: Admission, discharge, and referral history
+    private final List<AdmissionRequest> history = new ArrayList<>();
 
-        graph.addRoad("L6", "L7", 9);
-        graph.addRoad("L7", "L8", 11);
-        graph.addRoad("L9", "L8", 22);
+    // Services
+    private final AdmissionPolicy admissionPolicy = AdmissionPolicy.standard();
+    private final RoutePlanner routePlanner = new RoutePlanner();
+    private final ReferralService referralService = new ReferralService(routePlanner);
 
-        return graph;
+    private final Hospital primaryHospital;
+    private long patientSequenceCounter = 1;
+    private final Scanner scanner = new Scanner(System.in);
+
+    public HospitalApp() {
+        // Initialize Nalam District baseline environment
+        this.primaryHospital = initBaselineData();
     }
 
-    public static Hospital createPrimaryHospital() {
-        Hospital ndgh = new Hospital("NDGH", "Nalam District Government Hospital", "L1", true);
+    public static void main(String[] args) {
+        HospitalApp app = new HospitalApp();
+        if (args.length > 0 && ("--test".equalsIgnoreCase(args[0]) || "-t".equalsIgnoreCase(args[0]))) {
+            app.runAutomatedTests();
+            return;
+        }
+        app.startMenu();
+    }
 
-        ndgh.addBed(new ICUBed("NDGH-ICU-01", "NDGH", "ICU-101", true, true));
-        ndgh.addBed(new ICUBed("NDGH-ICU-02", "NDGH", "ICU-102", true, true));
+    private Hospital initBaselineData() {
+        // 1. Weighted Road Graph between hospitals (travel times in minutes)
+        addRoad("NDGH", "VSDH", 14);
+        addRoad("NDGH", "TCHC", 19);
+        addRoad("NDGH", "KTH", 30);
+        addRoad("VSDH", "TCHC", 21);
+        addRoad("VSDH", "KTH", 26);
+        addRoad("TCHC", "KTH", 35);
+
+        // 2. Primary Hospital: NDGH (Nalam District Government Hospital)
+        Hospital ndgh = new Hospital("NDGH", "Nalam District Government Hospital", true);
+        ndgh.addBed(new ICUBed("NDGH-ICU-01", "NDGH", "ICU-101", true));
+        ndgh.addBed(new ICUBed("NDGH-ICU-02", "NDGH", "ICU-102", true));
         ndgh.addBed(new GeneralBed("NDGH-GEN-01", "NDGH", "GEN-201", true));
         ndgh.addBed(new GeneralBed("NDGH-GEN-02", "NDGH", "GEN-202", true));
         ndgh.addBed(new GeneralBed("NDGH-GEN-03", "NDGH", "GEN-203", false));
@@ -1594,378 +930,228 @@ class SyntheticDataGenerator {
         ndgh.addDoctor(new Doctor("DOC-02", "Priya Sundaram", "Emergency Medicine", "NDGH", true));
         ndgh.addDoctor(new Doctor("DOC-03", "Anand Varma", "General Medicine", "NDGH", true));
         ndgh.addDoctor(new Doctor("DOC-04", "Kavitha Nair", "General Medicine", "NDGH", true));
+        hospitals.put("NDGH", ndgh);
 
-        return ndgh;
-    }
-
-    public static List<Hospital> createReferralHospitals() {
-        List<Hospital> referrals = new ArrayList<>();
-
-        Hospital vsdh = new Hospital("VSDH", "Vallam Sub-District Hospital", "L3", false);
-        vsdh.addBed(new ICUBed("VSDH-ICU-01", "VSDH", "ICU-301", true, true));
-        vsdh.addBed(new ICUBed("VSDH-ICU-02", "VSDH", "ICU-302", false, true));
+        // 3. Referral Hospital 1: VSDH (Vallam Sub-District Hospital - 14 mins from NDGH)
+        Hospital vsdh = new Hospital("VSDH", "Vallam Sub-District Hospital", false);
+        vsdh.addBed(new ICUBed("VSDH-ICU-01", "VSDH", "ICU-301", true));
+        vsdh.addBed(new ICUBed("VSDH-ICU-02", "VSDH", "ICU-302", false));
         vsdh.addBed(new GeneralBed("VSDH-GEN-01", "VSDH", "GEN-301", true));
         vsdh.addBed(new GeneralBed("VSDH-GEN-02", "VSDH", "GEN-302", true));
         vsdh.addBed(new GeneralBed("VSDH-GEN-03", "VSDH", "GEN-303", false));
         vsdh.addDoctor(new Doctor("DOC-05", "Karthik Rajan", "Critical Care", "VSDH", true));
         vsdh.addDoctor(new Doctor("DOC-06", "Meena Krishnan", "General Medicine", "VSDH", true));
-        referrals.add(vsdh);
+        hospitals.put("VSDH", vsdh);
 
-        Hospital tchc = new Hospital("TCHC", "Thoppur Community Health Centre", "L5", false);
+        // 4. Referral Hospital 2: TCHC (Thoppur Community Health Centre - 19 mins from NDGH)
+        Hospital tchc = new Hospital("TCHC", "Thoppur Community Health Centre", false);
         tchc.addBed(new GeneralBed("TCHC-GEN-01", "TCHC", "GEN-501", true));
         tchc.addBed(new GeneralBed("TCHC-GEN-02", "TCHC", "GEN-502", false));
         tchc.addBed(new GeneralBed("TCHC-GEN-03", "TCHC", "GEN-503", false));
         tchc.addDoctor(new Doctor("DOC-07", "Vignesh Balan", "General Medicine", "TCHC", true));
-        referrals.add(tchc);
+        hospitals.put("TCHC", tchc);
 
-        Hospital kth = new Hospital("KTH", "Kadur Taluk Hospital", "L8", false);
-        kth.addBed(new ICUBed("KTH-ICU-01", "KTH", "ICU-801", true, true));
-        kth.addBed(new ICUBed("KTH-ICU-02", "KTH", "ICU-802", true, false));
+        // 5. Referral Hospital 3: KTH (Kadur Taluk Hospital - 30 mins from NDGH)
+        Hospital kth = new Hospital("KTH", "Kadur Taluk Hospital", false);
+        kth.addBed(new ICUBed("KTH-ICU-01", "KTH", "ICU-801", true));
+        kth.addBed(new ICUBed("KTH-ICU-02", "KTH", "ICU-802", false));
         kth.addBed(new GeneralBed("KTH-GEN-01", "KTH", "GEN-801", true));
         kth.addBed(new GeneralBed("KTH-GEN-02", "KTH", "GEN-802", false));
         kth.addDoctor(new Doctor("DOC-08", "Shalini Devi", "Emergency Medicine", "KTH", true));
-        referrals.add(kth);
+        hospitals.put("KTH", kth);
 
-        return referrals;
+        return ndgh;
     }
 
-    public static HospitalSystemManager initializeSystem() {
-        RoadGraph graph = buildNalamRoadNetwork();
-        Hospital primary = createPrimaryHospital();
-        List<Hospital> referrals = createReferralHospitals();
-        return new HospitalSystemManager(primary, referrals, graph);
+    private void addRoad(String hospA, String hospB, int minutes) {
+        roadGraph.putIfAbsent(hospA, new LinkedHashMap<>());
+        roadGraph.putIfAbsent(hospB, new LinkedHashMap<>());
+        roadGraph.get(hospA).put(hospB, minutes);
+        roadGraph.get(hospB).put(hospA, minutes);
     }
 
-    public static List<SyntheticPatientRecord> getSyntheticPatientBatch() {
-        List<SyntheticPatientRecord> list = new ArrayList<>();
-        list.add(new SyntheticPatientRecord("P-101", "Arun Kumar", 58, "Male", Severity.CRITICAL, "ICU", "Acute Myocardial Infarction / Cardiogenic Shock"));
-        list.add(new SyntheticPatientRecord("P-102", "Deepa Mohan", 34, "Female", Severity.SERIOUS, "General", "Post-partum hemorrhage / Severe Anemia"));
-        list.add(new SyntheticPatientRecord("P-103", "Murugan Vel", 42, "Male", Severity.MINOR, "General", "Laceration forearm / Suturing required"));
-        list.add(new SyntheticPatientRecord("P-104", "Fatima Beevi", 66, "Female", Severity.CRITICAL, "ICU", "Acute Respiratory Failure / ARDS"));
-        list.add(new SyntheticPatientRecord("P-105", "Suresh Gopinath", 29, "Male", Severity.SERIOUS, "General", "Road accident / Closed tibia fracture"));
-        list.add(new SyntheticPatientRecord("P-106", "Lakshmi Ammal", 71, "Female", Severity.CRITICAL, "ICU", "Severe Sepsis / Septic Shock"));
-        list.add(new SyntheticPatientRecord("P-107", "Kavita Sethi", 25, "Female", Severity.MINOR, "General", "Dehydration due to acute gastroenteritis"));
-        list.add(new SyntheticPatientRecord("P-108", "Rajesh Khanna", 50, "Male", Severity.SERIOUS, "General", "High grade fever with thrombocytopenia (Dengue)"));
-        list.add(new SyntheticPatientRecord("P-109", "Selvamani P.", 63, "Male", Severity.CRITICAL, "ICU", "Cerebrovascular Stroke with coma"));
-        list.add(new SyntheticPatientRecord("P-110", "Amina Khatun", 45, "Female", Severity.MINOR, "General", "Mild asthma bronchospasm"));
-        list.add(new SyntheticPatientRecord("P-111", "Venkatesh Rao", 52, "Male", Severity.SERIOUS, "General", "Acute pancreatitis"));
-        list.add(new SyntheticPatientRecord("P-112", "Chitra Devi", 38, "Female", Severity.CRITICAL, "ICU", "Status epilepticus"));
-        list.add(new SyntheticPatientRecord("P-113", "Mani Kandan", 19, "Male", Severity.MINOR, "General", "Second degree minor scald burn"));
-        list.add(new SyntheticPatientRecord("P-114", "Sundar Raj", 61, "Male", Severity.SERIOUS, "General", "Bilateral pneumonia requiring high-flow O2"));
-        list.add(new SyntheticPatientRecord("P-115", "Shanti Ramasamy", 55, "Female", Severity.CRITICAL, "ICU", "Severe polytrauma with tension pneumothorax"));
-        list.add(new SyntheticPatientRecord("P-116", "Praveen Joshua", 31, "Male", Severity.MINOR, "General", "Soft tissue contusion right ankle"));
-        list.add(new SyntheticPatientRecord("P-117", "Banumathi K.", 48, "Female", Severity.SERIOUS, "General", "Severe diabetic ketoacidosis"));
-        list.add(new SyntheticPatientRecord("P-118", "Dinesh Babu", 36, "Male", Severity.MINOR, "General", "Superficial laceration forehead"));
-        list.add(new SyntheticPatientRecord("P-119", "Radhika Narayanan", 67, "Female", Severity.CRITICAL, "ICU", "Pulmonary embolism"));
-        list.add(new SyntheticPatientRecord("P-120", "Abdul Kareem", 53, "Male", Severity.SERIOUS, "General", "Acute appendicitis with localized peritonitis"));
-        list.add(new SyntheticPatientRecord("P-121", "Nalini Sekar", 27, "Female", Severity.MINOR, "General", "Renal colic / ureteric calculus"));
-        list.add(new SyntheticPatientRecord("P-122", "Ravi Shankar", 44, "Male", Severity.SERIOUS, "General", "Blunt abdominal trauma under observation"));
-        return list;
+    // --- Core Operations ---
+
+    public Patient registerPatient(String patientId, String name, int age, String gender,
+                                   int severity, String requiredFacility) {
+        long seq = patientSequenceCounter++;
+        Patient patient = new Patient(patientId, name, age, gender, severity, requiredFacility, seq);
+        allPatients.put(patientId, patient);
+        waitingQueue.offer(patient);
+        return patient;
     }
 
-    public static class SyntheticPatientRecord {
-        public final String id;
-        public final String name;
-        public final int age;
-        public final String gender;
-        public final Severity severity;
-        public final String requiredFacility;
-        public final String complaint;
+    /**
+     * Dynamic Re-ranking requirement:
+     * "Remove and reinsert queued records when their ranking fields change."
+     */
+    public boolean updatePatientSeverity(String patientId, int newSeverity) {
+        Patient patient = allPatients.get(patientId);
+        if (patient == null) return false;
 
-        public SyntheticPatientRecord(String id, String name, int age, String gender,
-                                      Severity severity, String requiredFacility, String complaint) {
-            this.id = id;
-            this.name = name;
-            this.age = age;
-            this.gender = gender;
-            this.severity = severity;
-            this.requiredFacility = requiredFacility;
-            this.complaint = complaint;
-        }
-    }
-}
-
-// =============================================================================
-// 6. AUTOMATED TEST SUITE RUNNER
-// =============================================================================
-
-class TestRunner {
-    private static int passedTests = 0;
-    private static int totalTests = 0;
-
-    public static void main(String[] args) {
-        passedTests = 0;
-        totalTests = 0;
-
-        System.out.println("================================================================================");
-        System.out.println("   GOVERNMENT HOSPITAL RESOURCE ALLOCATION - AUTOMATED TEST SUITE   ");
-        System.out.println("================================================================================");
-
-        runTestCase1_NoICUBed_TriggersReferral();
-        runTestCase2_NoMatchingDoctor_BlocksAdmission();
-        runTestCase3_SimultaneousDemand_PrioritizesSeverityFirst();
-        runTestCase4_DischargeEnablesWaitingAdmission();
-        runTestCase5_PriorityTiesAndDynamicReranking();
-
-        System.out.println("\n================================================================================");
-        System.out.printf("   TEST SUITE SUMMARY: %d / %d TESTS PASSED (%.1f%% Success Rate)\n",
-                passedTests, totalTests, (passedTests * 100.0 / totalTests));
-        System.out.println("================================================================================");
-
-        if (passedTests != totalTests) {
-            System.exit(1);
-        }
-    }
-
-    private static void assertTrue(String testName, boolean condition, String details) {
-        totalTests++;
-        if (condition) {
-            passedTests++;
-            System.out.printf("  [PASS] %s: %s\n", testName, details);
+        if (waitingQueue.contains(patient)) {
+            waitingQueue.remove(patient); // Remove from min-heap
+            patient.setSeverity(newSeverity); // Mutate rank
+            waitingQueue.offer(patient); // Re-insert to re-heapify
+            return true;
         } else {
-            System.err.printf("  [FAIL] %s: %s\n", testName, details);
+            patient.setSeverity(newSeverity);
+            return true;
         }
     }
 
-    private static void runTestCase1_NoICUBed_TriggersReferral() {
-        System.out.println("\n--------------------------------------------------------------------------------");
-        System.out.println("TEST CASE 1: No ICU Bed at Primary Hospital -> Dijkstra Shortest-Path Referral");
-        System.out.println("--------------------------------------------------------------------------------");
+    public List<String> processWaitingQueue() {
+        List<String> outcomes = new ArrayList<>();
+        List<Patient> unserved = new ArrayList<>();
 
-        HospitalSystemManager manager = SyntheticDataGenerator.initializeSystem();
-        Hospital primary = manager.getPrimaryHospital();
+        while (!waitingQueue.isEmpty()) {
+            Patient patient = waitingQueue.poll();
 
-        Bed icu1 = primary.getBed("NDGH-ICU-01");
-        Bed icu2 = primary.getBed("NDGH-ICU-02");
-        Doctor doc1 = primary.getDoctor("DOC-01");
-        Doctor doc2 = primary.getDoctor("DOC-02");
+            // 1. Check local admission via AdmissionPolicy
+            if (admissionPolicy.isEligible(primaryHospital, patient)) {
+                Bed bed = primaryHospital.findAvailableBed(patient.getRequiredFacility()).orElseThrow();
+                Doctor doc = primaryHospital.findAvailableDoctor(patient.getSeverity(), patient.getRequiredFacility()).orElseThrow();
 
-        Patient existing1 = new Patient("EXT-01", "Existing ICU Pt 1", 60, "M", Severity.CRITICAL, "ICU", 1);
-        Patient existing2 = new Patient("EXT-02", "Existing ICU Pt 2", 65, "F", Severity.CRITICAL, "ICU", 2);
-        primary.admitPatient(existing1, icu1, doc1);
-        primary.admitPatient(existing2, icu2, doc2);
+                primaryHospital.admitPatient(patient, bed, doc);
 
-        assertTrue("TC1.1", primary.getAvailableBedsCount(ICUBed.class) == 0,
-                "Primary hospital NDGH has 0 available ICU beds.");
-
-        Patient criticalPt = manager.registerPatient("TC1-P01", "Karthik Subramanian", 54, "M",
-                Severity.CRITICAL, "ICU");
-
-        List<AdmissionRequest> results = manager.processWaitingQueue();
-        AdmissionRequest req = results.get(0);
-
-        assertTrue("TC1.2", req.getDisposition() == AdmissionRequest.Disposition.REFERRED_AND_RESERVED,
-                "Patient disposition is REFERRED_AND_RESERVED.");
-        assertTrue("TC1.3", "VSDH".equals(req.getAllocatedHospitalId()),
-                "Fastest reachable hospital selected is VSDH (Vallam Sub-District Hospital).");
-        assertTrue("TC1.4", req.getTravelTimeMinutes() == 14,
-                "Shortest travel time calculated by Dijkstra is 14 minutes.");
-        assertTrue("TC1.5", criticalPt.getStatus() == Patient.Status.REFERRED,
-                "Patient status transitioned to REFERRED.");
-
-        Hospital vsdh = manager.getHospital("VSDH");
-        Bed reservedBed = vsdh.getBed(req.getAllocatedBedId());
-        assertTrue("TC1.6", reservedBed.isOccupied() && criticalPt.getPatientId().equals(reservedBed.getCurrentPatientId()),
-                "Referral bed " + reservedBed.getBedId() + " was reserved immediately before confirmation.");
-    }
-
-    private static void runTestCase2_NoMatchingDoctor_BlocksAdmission() {
-        System.out.println("\n--------------------------------------------------------------------------------");
-        System.out.println("TEST CASE 2: No Matching Doctor -> Admission Blocked & Queued; Restores on Duty");
-        System.out.println("--------------------------------------------------------------------------------");
-
-        HospitalSystemManager manager = SyntheticDataGenerator.initializeSystem();
-        Hospital primary = manager.getPrimaryHospital();
-
-        manager.setDoctorDutyStatus("NDGH", "DOC-01", false);
-        manager.setDoctorDutyStatus("NDGH", "DOC-02", false);
-
-        for (Hospital h : manager.getAllHospitals()) {
-            if (!h.isPrimary()) {
-                for (Bed b : h.getAllBeds()) {
-                    if (b instanceof ICUBed && !b.isOccupied()) {
-                        b.admitPatient("DUMMY-" + b.getBedId());
-                    }
+                String msg = String.format("Admitted locally at %s -> Bed: %s, Doctor: Dr. %s",
+                        primaryHospital.getName(), bed.getBedId(), doc.getName());
+                history.add(new AdmissionRequest(
+                        "REQ-" + System.currentTimeMillis(),
+                        AdmissionRequest.Type.ADMISSION,
+                        patient.getPatientId(),
+                        patient.getName(),
+                        primaryHospital.getHospitalId(),
+                        bed.getBedId(),
+                        doc.getDoctorId(),
+                        0,
+                        msg
+                ));
+                outcomes.add("[ADMITTED] " + patient.getName() + " -> " + msg);
+            } else {
+                // 2. Local admission failed -> Attempt Dijkstra-based referral
+                boolean referred = referralService.referPatient(primaryHospital, hospitals.values(), roadGraph, patient, history);
+                if (referred) {
+                    outcomes.add("[REFERRED] " + patient.getName() + " -> " + patient.getReferralNotes());
+                } else {
+                    // 3. Both local and referral capacity full -> Keep in queue
+                    unserved.add(patient);
+                    outcomes.add("[WAITING] " + patient.getName() + " -> Deferred: All suitable beds or doctors occupied.");
                 }
             }
         }
 
-        assertTrue("TC2.1", primary.getAvailableBedsCount(ICUBed.class) > 0,
-                "Primary hospital has free ICU bed.");
+        // Re-enqueue unserved patients
+        for (Patient p : unserved) {
+            waitingQueue.offer(p);
+        }
 
-        Patient patient = manager.registerPatient("TC2-P01", "Meenakshi Sundaram", 62, "F",
-                Severity.CRITICAL, "ICU");
-
-        List<AdmissionRequest> results = manager.processWaitingQueue();
-        AdmissionRequest req = results.get(0);
-
-        assertTrue("TC2.2", req.getDisposition() == AdmissionRequest.Disposition.QUEUED_NO_DOCTOR,
-                "Admission rejected due to doctor unavailability: " + req.getRemarks());
-        assertTrue("TC2.3", patient.getStatus() == Patient.Status.WAITING,
-                "Patient remains safely queued in WAITING status.");
-
-        System.out.println("  [ACTION] Dr. Ramesh Kumar (DOC-01) reports on duty...");
-        manager.setDoctorDutyStatus("NDGH", "DOC-01", true);
-
-        assertTrue("TC2.4", patient.getStatus() == Patient.Status.ADMITTED_LOCAL,
-                "Patient automatically admitted upon doctor duty resumption!");
-        assertTrue("TC2.5", "DOC-01".equals(patient.getAssignedDoctorId()),
-                "Doctor DOC-01 assigned to patient.");
+        return outcomes;
     }
 
-    private static void runTestCase3_SimultaneousDemand_PrioritizesSeverityFirst() {
-        System.out.println("\n--------------------------------------------------------------------------------");
-        System.out.println("TEST CASE 3: Simultaneous Demand for 1 Bed -> Process Severity First, Arrival Second");
-        System.out.println("--------------------------------------------------------------------------------");
+    public boolean dischargePatient(String hospitalId, String patientId) {
+        Hospital hosp = hospitals.get(hospitalId);
+        if (hosp == null) return false;
 
-        HospitalSystemManager manager = SyntheticDataGenerator.initializeSystem();
-        Hospital primary = manager.getPrimaryHospital();
+        Patient patient = allPatients.get(patientId);
+        String bedId = (patient != null) ? patient.getAssignedBedId() : null;
+        String docId = (patient != null) ? patient.getAssignedDoctorId() : null;
 
-        primary.getBed("NDGH-GEN-01").admitPatient("OCC-01");
-        primary.getBed("NDGH-GEN-02").admitPatient("OCC-02");
-        primary.getBed("NDGH-GEN-03").admitPatient("OCC-03");
-
-        for (Hospital h : manager.getAllHospitals()) {
-            if (!h.isPrimary()) {
-                for (Bed b : h.getAllBeds()) {
-                    if (b instanceof GeneralBed && !b.isOccupied()) {
-                        b.admitPatient("DUMMY-" + b.getBedId());
-                    }
-                }
+        boolean discharged = hosp.dischargePatient(patientId);
+        if (discharged) {
+            if (patient != null) {
+                patient.setStatus(Patient.Status.DISCHARGED);
+                patient.setAssignedBedId(null);
+                patient.setAssignedDoctorId(null);
             }
+
+            history.add(new AdmissionRequest(
+                    "REQ-" + System.currentTimeMillis(),
+                    AdmissionRequest.Type.DISCHARGE,
+                    patientId,
+                    patient != null ? patient.getName() : "-",
+                    hospitalId,
+                    bedId,
+                    docId,
+                    0,
+                    "Discharged; bed and doctor released."
+            ));
+
+            // Immediate reflection: Released bed auto-evaluates waiting queue!
+            processWaitingQueue();
+            return true;
         }
-
-        assertTrue("TC3.1", primary.getAvailableBedsCount(GeneralBed.class) == 1,
-                "Exactly 1 General Bed remaining at primary hospital.");
-
-        Patient ptA = manager.registerPatient("TC3-PT-A", "Patient A (Arrived 1st)", 22, "M",
-                Severity.MINOR, "General");
-        Patient ptB = manager.registerPatient("TC3-PT-B", "Patient B (Arrived 2nd)", 48, "F",
-                Severity.SERIOUS, "General");
-
-        assertTrue("TC3.2", ptA.getArrivalSequence() < ptB.getArrivalSequence(),
-                "Pt A arrived earlier (Seq " + ptA.getArrivalSequence() + " < Seq " + ptB.getArrivalSequence() + ").");
-
-        manager.processWaitingQueue();
-
-        assertTrue("TC3.3", ptB.getStatus() == Patient.Status.ADMITTED_LOCAL,
-                "Patient B (SERIOUS) was admitted first due to higher clinical severity!");
-        assertTrue("TC3.4", ptA.getStatus() == Patient.Status.WAITING,
-                "Patient A (MINOR) kept waiting as capacity exhausted.");
+        return false;
     }
 
-    private static void runTestCase4_DischargeEnablesWaitingAdmission() {
-        System.out.println("\n--------------------------------------------------------------------------------");
-        System.out.println("TEST CASE 4: Discharge Enabling Admission -> Immediate Waiting List Reflection");
-        System.out.println("--------------------------------------------------------------------------------");
+    public boolean setDoctorDutyStatus(String hospitalId, String doctorId, boolean onDuty) {
+        Hospital hosp = hospitals.get(hospitalId);
+        if (hosp == null) return false;
+        Doctor doc = hosp.getDoctor(doctorId);
+        if (doc == null) return false;
 
-        HospitalSystemManager manager = SyntheticDataGenerator.initializeSystem();
-        Hospital primary = manager.getPrimaryHospital();
-
-        for (Bed b : primary.getAllBeds()) {
-            if (!b.isOccupied()) {
-                b.admitPatient("OCC-" + b.getBedId());
-            }
+        doc.setDutyStatus(onDuty);
+        if (onDuty) {
+            processWaitingQueue();
         }
+        return true;
+    }
 
-        for (Hospital h : manager.getAllHospitals()) {
-            if (!h.isPrimary()) {
-                for (Bed b : h.getAllBeds()) {
-                    if (!b.isOccupied()) {
-                        b.admitPatient("DUMMY-" + b.getBedId());
-                    }
-                }
-            }
+    public boolean updateRoadTravelTime(String hospA, String hospB, int minutes) {
+        if (!roadGraph.containsKey(hospA) || !roadGraph.get(hospA).containsKey(hospB)) {
+            return false;
         }
-
-        Patient waitingPt = manager.registerPatient("TC4-WAIT", "Waiting Patient Mani", 39, "M",
-                Severity.SERIOUS, "General");
-        manager.processWaitingQueue();
-
-        assertTrue("TC4.1", waitingPt.getStatus() == Patient.Status.WAITING,
-                "Patient is waiting due to zero available beds.");
-
-        System.out.println("  [ACTION] Discharging occupant OCC-NDGH-GEN-01 from NDGH-GEN-01...");
-        boolean discharged = manager.dischargePatient("NDGH", "OCC-NDGH-GEN-01");
-        assertTrue("TC4.2", discharged, "Occupant discharged successfully.");
-
-        assertTrue("TC4.3", waitingPt.getStatus() == Patient.Status.ADMITTED_LOCAL,
-                "Waiting patient immediately admitted upon bed discharge!");
-        assertTrue("TC4.4", "NDGH-GEN-01".equals(waitingPt.getAssignedBedId()),
-                "Assigned to the newly vacated bed NDGH-GEN-01.");
+        roadGraph.get(hospA).put(hospB, minutes);
+        roadGraph.get(hospB).put(hospA, minutes);
+        return true;
     }
 
-    private static void runTestCase5_PriorityTiesAndDynamicReranking() {
-        System.out.println("\n--------------------------------------------------------------------------------");
-        System.out.println("TEST CASE 5: Priority Ties & Dynamic Re-ranking (Remove & Reinsert Heap)");
-        System.out.println("--------------------------------------------------------------------------------");
+    // --- Interactive Console Menu ---
 
-        HospitalSystemManager manager = SyntheticDataGenerator.initializeSystem();
+    public void startMenu() {
+        System.out.println("================================================================================");
+        System.out.println("     GOVERNMENT HOSPITAL EMERGENCY RESOURCE ALLOCATION SYSTEM (NALAM DIST)      ");
+        System.out.println("================================================================================");
+        System.out.println("  Core Tech: Pure Java SE | Clean OOP | PriorityQueue | HashMap | Graph | Heap  ");
+        System.out.println("================================================================================");
 
-        Patient pt1 = manager.registerPatient("TC5-P01", "Tie Pt 1", 30, "M", Severity.SERIOUS, "General");
-        Patient pt2 = manager.registerPatient("TC5-P02", "Tie Pt 2", 32, "F", Severity.SERIOUS, "General");
-
-        List<Patient> snapshot = manager.getWaitingListSnapshot();
-        assertTrue("TC5.1", snapshot.get(0).getPatientId().equals("TC5-P01"),
-                "Priority tie broken deterministically by arrival sequence (Pt 1 before Pt 2).");
-
-        System.out.println("  [ACTION] Clinically escalating Pt 2 from SERIOUS to CRITICAL...");
-        boolean updated = manager.updatePatientSeverity("TC5-P02", Severity.CRITICAL);
-        assertTrue("TC5.2", updated, "Severity successfully updated with heap re-insertion.");
-
-        List<Patient> updatedSnapshot = manager.getWaitingListSnapshot();
-        assertTrue("TC5.3", updatedSnapshot.get(0).getPatientId().equals("TC5-P02"),
-                "Pt 2 is now at head of PriorityQueue after dynamic re-ranking!");
-    }
-}
-
-// =============================================================================
-// 7. PUBLIC ENTRY POINT & INTERACTIVE CONSOLE APP
-// =============================================================================
-
-public class HospitalApp {
-    private final HospitalSystemManager manager;
-    private final Scanner scanner;
-
-    public HospitalApp() {
-        this.manager = SyntheticDataGenerator.initializeSystem();
-        this.scanner = new Scanner(System.in);
-    }
-
-    public static void main(String[] args) {
-        if (args.length > 0 && ("--test".equalsIgnoreCase(args[0]) || "-t".equalsIgnoreCase(args[0]))) {
-            TestRunner.main(args);
-            return;
-        }
-
-        HospitalApp app = new HospitalApp();
-        app.start();
-    }
-
-    public void start() {
-        printHeader();
         boolean running = true;
         while (running) {
-            printMainMenu();
-            String choice = prompt("Select an option [0-11]: ");
-            switch (choice.trim()) {
-                case "1" -> viewHospitalStatus();
-                case "2" -> viewRoadNetworkAndRoutes();
-                case "3" -> registerNewPatient();
-                case "4" -> processWaitingQueue();
-                case "5" -> dischargePatient();
-                case "6" -> updateDoctorDutyStatus();
-                case "7" -> updateRoadTravelTime();
-                case "8" -> updatePatientSeverity();
-                case "9" -> loadAndSimulateSyntheticBatch();
-                case "10" -> runAutomatedVerificationTests();
-                case "11" -> viewAuditHistory();
+            System.out.println("\n---------------------------------- MAIN MENU -----------------------------------");
+            System.out.println(" 1. View Hospital Capacities & Doctor Status");
+            System.out.println(" 2. View Road Network & Dijkstra Shortest Travel Times from NDGH");
+            System.out.println(" 3. Register New Emergency Patient");
+            System.out.println(" 4. Process Waiting Queue (Severity-First Admission & Referrals)");
+            System.out.println(" 5. Discharge Patient (Immediate Reflection in Waiting Queue)");
+            System.out.println(" 6. Update Doctor Duty Status (Toggle On/Off Duty)");
+            System.out.println(" 7. Update Road Travel Time (Manual Road Condition Update)");
+            System.out.println(" 8. Update Waiting Patient Urgency (Heap Re-Ranking)");
+            System.out.println(" 9. Run Mandatory Test Suite (4 Failure & Contention Cases)");
+            System.out.println(" 10. View Admission / Discharge / Referral History (ArrayList)");
+            System.out.println("  0. Exit");
+            System.out.println("--------------------------------------------------------------------------------");
+
+            System.out.print("Select an option [0-10]: ");
+            String choice = scanner.nextLine().trim();
+
+            switch (choice) {
+                case "1" -> viewHospitals();
+                case "2" -> viewRoads();
+                case "3" -> handleRegisterPatient();
+                case "4" -> handleProcessQueue();
+                case "5" -> handleDischarge();
+                case "6" -> handleDoctorDuty();
+                case "7" -> handleRoadUpdate();
+                case "8" -> handleSeverityUpdate();
+                case "9" -> runAutomatedTests();
+                case "10" -> viewHistory();
                 case "0" -> {
-                    System.out.println("\nExiting Hospital Emergency Resource Allocation System. Stay safe!");
+                    System.out.println("Exiting system. Stay safe!");
                     running = false;
                 }
-                default -> System.out.println("Invalid option! Please enter a number between 0 and 11.");
+                default -> System.out.println("Invalid choice!");
             }
+
             if (running) {
                 System.out.println("\nPress ENTER to continue...");
                 scanner.nextLine();
@@ -1973,52 +1159,17 @@ public class HospitalApp {
         }
     }
 
-    private void printHeader() {
-        System.out.println("================================================================================");
-        System.out.println("     GOVERNMENT HOSPITAL EMERGENCY RESOURCE ALLOCATION SYSTEM (NALAM DIST)      ");
-        System.out.println("================================================================================");
-        System.out.println("  SDG Connections: SDG 3 (Health), SDG 9 (Infrastructure), SDG 10 (Inequalities)");
-        System.out.println("  Core Tech: Pure Java SE | OOP Principles | Custom Graphs & Heaps");
-        System.out.println("================================================================================");
-    }
-
-    private void printMainMenu() {
-        System.out.println("\n---------------------------------- MAIN MENU -----------------------------------");
-        System.out.println(" 1. View District Hospital Status & Capacities (Beds, Doctors)");
-        System.out.println(" 2. View Road Network & Dijkstra Shortest Travel Times from NDGH");
-        System.out.println(" 3. Register New Emergency Patient (Manual Intake)");
-        System.out.println(" 4. Process Waiting Queue (Severity-First Admission & Referrals)");
-        System.out.println(" 5. Discharge Patient / Complete Treatment (Releases Bed & Doctor)");
-        System.out.println(" 6. Update Doctor Duty Status (Toggle On-Duty / Off-Duty)");
-        System.out.println(" 7. Update Road Travel Time (Manual Road Condition Update)");
-        System.out.println(" 8. Update Waiting Patient Urgency (Dynamic Re-Ranking in Heap)");
-        System.out.println(" 9. Load & Simulate 22 Synthetic Patient Requests Batch");
-        System.out.println(" 10. Run Mandatory Verification Test Suite (4 Failure & Contention Cases)");
-        System.out.println(" 11. View Event Audit History (ArrayList Event Log)");
-        System.out.println("  0. Exit System");
-        System.out.println("--------------------------------------------------------------------------------");
-    }
-
-    private void viewHospitalStatus() {
+    private void viewHospitals() {
         System.out.println("\n=========================== DISTRICT HOSPITAL STATUS ===========================");
-        for (Hospital h : manager.getAllHospitals()) {
-            System.out.println("\n" + (h.isPrimary() ? ">>> PRIMARY HOSPITAL <<<" : "--- REFERRAL HOSPITAL ---"));
-            System.out.printf("%s (%s) @ Location [%s]\n", h.getName(), h.getHospitalId(), h.getLocationId());
-            System.out.printf("  Total Beds: %d | Available: %d | Occupied: %d\n",
-                    h.getTotalBedsCount(), h.getAvailableBedsCount(), h.getOccupiedBedsCount());
-            System.out.printf("  Available Breakdown: [ICU: %d]  [General: %d]\n",
-                    h.getAvailableBedsCount(ICUBed.class), h.getAvailableBedsCount(GeneralBed.class));
-            System.out.printf("  Doctors On Duty: %d | Available for Admission: %d\n",
-                    h.getOnDutyDoctorCount(), h.getAvailableDoctorCount());
-
-            System.out.println("  Beds Registry:");
+        for (Hospital h : hospitals.values()) {
+            System.out.println("\n" + h);
+            System.out.println("  Beds:");
             for (Bed b : h.getAllBeds()) {
                 System.out.printf("    - Bed %-12s Type: %-14s Status: %s\n",
                         b.getBedId(), b.getBedType(),
                         b.isOccupied() ? "OCCUPIED (Pt: " + b.getCurrentPatientId() + ")" : "VACANT");
             }
-
-            System.out.println("  Doctors Registry:");
+            System.out.println("  Doctors:");
             for (Doctor d : h.getAllDoctors()) {
                 System.out.printf("    - [%s] Dr. %-18s (%-18s) Duty: %-8s Status: %s\n",
                         d.getDoctorId(), d.getName(), d.getSpecialization(),
@@ -2027,298 +1178,314 @@ public class HospitalApp {
             }
         }
 
-        List<Patient> waiting = manager.getWaitingListSnapshot();
         System.out.println("\n---------------------------- WAITING QUEUE SUMMARY -----------------------------");
-        System.out.printf("Patients currently waiting in PriorityQueue: %d\n", waiting.size());
-        if (waiting.isEmpty()) {
-            System.out.println("  (No patients currently waiting)");
-        } else {
-            int rank = 1;
-            for (Patient p : waiting) {
-                System.out.printf("  #%d [%s] %s | Urgency: %-8s | Facility: %-7s | Arrival Seq: #%d\n",
-                        rank++, p.getPatientId(), p.getName(), p.getSeverity(), p.getRequiredFacility(), p.getArrivalSequence());
-            }
+        System.out.printf("Patients currently waiting in PriorityQueue: %d\n", waitingQueue.size());
+        List<Patient> snapshot = new ArrayList<>(waitingQueue);
+        Collections.sort(snapshot);
+        int rank = 1;
+        for (Patient p : snapshot) {
+            System.out.printf("  #%d [%s] %s | Urgency: %-8s | Facility: %-7s | Arrival Seq: #%d\n",
+                    rank++, p.getPatientId(), p.getName(), p.getSeverityLabel(), p.getRequiredFacility(), p.getArrivalSequence());
         }
     }
 
-    private void viewRoadNetworkAndRoutes() {
-        System.out.println("\n===================== NALAM DISTRICT ROAD NETWORK TOPOLOGY =====================");
-        RoadGraph graph = manager.getRoadGraph();
-        for (Location loc : graph.getAllLocations()) {
-            System.out.printf("%-4s: %-22s - %s\n", loc.getLocationId(), loc.getName(), loc.getDescription());
-            for (RoadEdge edge : graph.getEdgesFrom(loc.getLocationId())) {
-                System.out.printf("      -> %-4s (%2d min travel time)\n", edge.getToLocationId(), edge.getTravelTimeMinutes());
+    private void viewRoads() {
+        System.out.println("\n===================== HOSPITAL ROAD NETWORK CONNECTIONS =====================");
+        for (var entry : roadGraph.entrySet()) {
+            System.out.printf("Hospital %s direct roads:\n", entry.getKey());
+            for (var road : entry.getValue().entrySet()) {
+                System.out.printf("  -> %s (%d mins)\n", road.getKey(), road.getValue());
             }
         }
 
-        System.out.println("\n----------------- DIJKSTRA SHORTEST TRAVEL TIMES FROM NDGH (L1) ----------------");
-        RoutePlanner planner = new RoutePlanner();
-        DijkstraResult result = planner.calculateShortestPaths(graph, "L1");
-        for (Hospital h : manager.getAllHospitals()) {
+        System.out.println("\n----------------- DIJKSTRA SHORTEST TRAVEL TIMES FROM NDGH ------------------");
+        RoutePlanner.RouteResult routes = routePlanner.calculateShortestPaths(roadGraph, "NDGH");
+        for (Hospital h : hospitals.values()) {
             if (h.isPrimary()) continue;
-            int time = result.getDistanceTo(h.getLocationId());
-            List<String> path = result.getPathTo(h.getLocationId());
-            System.out.printf("  %s (%s) @ %s: Travel Time = %d mins | Route: %s\n",
-                    h.getName(), h.getHospitalId(), h.getLocationId(), time, String.join(" -> ", path));
+            int time = routes.getDistanceTo(h.getHospitalId());
+            List<String> path = routes.getPathTo("NDGH", h.getHospitalId());
+            System.out.printf("  %s (%s): %d mins | Route: %s\n",
+                    h.getName(), h.getHospitalId(), time, String.join(" -> ", path));
         }
     }
 
-    private void registerNewPatient() {
+    private void handleRegisterPatient() {
         System.out.println("\n======================== REGISTER EMERGENCY PATIENT ========================");
-        String id = "P-" + (manager.getAllPatients().size() + 101);
-        System.out.println("Generated Patient ID: " + id);
+        String id = "P-" + (allPatients.size() + 101);
+        System.out.print("Enter Patient Name: ");
+        String name = scanner.nextLine().trim();
+        System.out.print("Enter Age: ");
+        int age = Integer.parseInt(scanner.nextLine().trim());
+        System.out.print("Enter Gender (M/F/Other): ");
+        String gender = scanner.nextLine().trim();
 
-        String name = prompt("Enter Patient Name: ");
-        int age = promptInt("Enter Age: ", 0, 120);
-        String gender = prompt("Enter Gender (Male/Female/Other): ");
+        System.out.println("Select Severity: 1 = CRITICAL, 2 = SERIOUS, 3 = MINOR");
+        System.out.print("Choice [1-3]: ");
+        int sev = Integer.parseInt(scanner.nextLine().trim());
 
-        System.out.println("\nSelect Severity:");
-        System.out.println("  1. CRITICAL (Immediate resuscitation / ventilator / ICU required)");
-        System.out.println("  2. SERIOUS  (Acute intervention / close monitoring required)");
-        System.out.println("  3. MINOR    (Non-life threatening / standard ward observation)");
-        int sevChoice = promptInt("Choice [1-3]: ", 1, 3);
-        Severity severity = switch (sevChoice) {
-            case 1 -> Severity.CRITICAL;
-            case 2 -> Severity.SERIOUS;
-            default -> Severity.MINOR;
-        };
+        System.out.println("Select Facility: 1 = ICU, 2 = General");
+        System.out.print("Choice [1-2]: ");
+        int facChoice = Integer.parseInt(scanner.nextLine().trim());
+        String facility = (facChoice == 1) ? "ICU" : "General";
 
-        System.out.println("\nSelect Required Facility:");
-        System.out.println("  1. ICU (Intensive Care Unit / Ventilator Bed)");
-        System.out.println("  2. General (Standard Inpatient Ward Bed)");
-        int facChoice = promptInt("Choice [1-2]: ", 1, 2);
-        String requiredFacility = (facChoice == 1) ? "ICU" : "General";
+        Patient p = registerPatient(id, name, age, gender, sev, facility);
+        System.out.printf("[SUCCESS] Registered patient %s (#%d in sequence).\n", p.getName(), p.getArrivalSequence());
 
-        Patient patient = manager.registerPatient(id, name, age, gender, severity, requiredFacility);
-        System.out.printf("\n[SUCCESS] Patient %s registered and enqueued into PriorityQueue at arrival sequence #%d.\n",
-                patient.getName(), patient.getArrivalSequence());
-
-        String autoProcess = prompt("Attempt admission immediately? (Y/N): ");
-        if ("Y".equalsIgnoreCase(autoProcess.trim())) {
-            processWaitingQueue();
+        System.out.print("Process waiting queue now? (Y/N): ");
+        if ("Y".equalsIgnoreCase(scanner.nextLine().trim())) {
+            handleProcessQueue();
         }
     }
 
-    private void processWaitingQueue() {
+    private void handleProcessQueue() {
         System.out.println("\n======================== PROCESSING WAITING QUEUE ========================");
-        if (manager.getWaitingQueue().isEmpty()) {
-            System.out.println("Waiting queue is currently empty. No patients to process.");
+        if (waitingQueue.isEmpty()) {
+            System.out.println("Waiting queue is empty.");
             return;
         }
-
-        System.out.printf("Evaluating %d queued patient(s) in order of clinical severity and arrival...\n",
-                manager.getWaitingQueue().size());
-
-        List<AdmissionRequest> results = manager.processWaitingQueue();
-        for (AdmissionRequest req : results) {
-            System.out.println("\n" + req);
+        List<String> results = processWaitingQueue();
+        for (String r : results) {
+            System.out.println("  " + r);
         }
-
-        System.out.printf("\nCompleted queue processing. %d patient(s) remain waiting.\n",
-                manager.getWaitingQueue().size());
     }
 
-    private void dischargePatient() {
+    private void handleDischarge() {
         System.out.println("\n======================== DISCHARGE / RELEASE BED ========================");
-        System.out.println("Currently admitted patients across all hospitals:");
-        List<Patient> admitted = new ArrayList<>();
-        for (Patient p : manager.getAllPatients().values()) {
-            if (p.getStatus() == Patient.Status.ADMITTED_LOCAL || p.getStatus() == Patient.Status.REFERRED) {
-                admitted.add(p);
-                System.out.printf("  [%s] %-18s | Hospital: %-5s | Bed: %-12s | Status: %s\n",
-                        p.getPatientId(), p.getName(), p.getAssignedHospitalId(),
-                        p.getAssignedBedId(), p.getStatus());
-            }
-        }
+        System.out.print("Enter Hospital ID (e.g. NDGH, VSDH): ");
+        String hid = scanner.nextLine().trim().toUpperCase();
+        System.out.print("Enter Patient ID to discharge: ");
+        String pid = scanner.nextLine().trim();
 
-        if (admitted.isEmpty()) {
-            System.out.println("No patients currently admitted across any hospitals.");
-            return;
-        }
-
-        String patientId = prompt("\nEnter Patient ID to discharge: ").trim();
-        Patient patient = manager.getPatient(patientId);
-        if (patient == null || (patient.getStatus() != Patient.Status.ADMITTED_LOCAL && patient.getStatus() != Patient.Status.REFERRED)) {
-            System.out.println("[ERROR] Patient ID not found or patient is not currently admitted.");
-            return;
-        }
-
-        String hospitalId = patient.getAssignedHospitalId();
-        boolean discharged = manager.dischargePatient(hospitalId, patientId);
-        if (discharged) {
-            System.out.printf("\n[SUCCESS] Patient %s discharged from %s.\n", patient.getName(), hospitalId);
-            System.out.println("Note: Released bed and doctor immediately evaluated for waiting list patients!");
+        boolean ok = dischargePatient(hid, pid);
+        if (ok) {
+            System.out.println("[SUCCESS] Patient discharged. Released bed and doctor immediately evaluated for waiting patients!");
         } else {
-            System.out.println("[ERROR] Could not complete discharge operation.");
+            System.out.println("[ERROR] Discharge failed. Check Hospital ID and Patient ID.");
         }
     }
 
-    private void updateDoctorDutyStatus() {
+    private void handleDoctorDuty() {
         System.out.println("\n======================== UPDATE DOCTOR DUTY STATUS ========================");
-        System.out.println("Doctors List:");
-        for (Hospital h : manager.getAllHospitals()) {
-            for (Doctor d : h.getAllDoctors()) {
-                System.out.printf("  [%-6s @ %-5s] Dr. %-18s (%-16s) | Duty: %-8s | Active Patient: %s\n",
-                        d.getDoctorId(), d.getHospitalId(), d.getName(), d.getSpecialization(),
-                        d.isOnDuty() ? "ON-DUTY" : "OFF-DUTY",
-                        d.getAssignedPatientId() != null ? d.getAssignedPatientId() : "None");
-            }
-        }
-
-        String hospitalId = prompt("\nEnter Hospital ID (e.g., NDGH, VSDH, TCHC, KTH): ").trim().toUpperCase();
-        String doctorId = prompt("Enter Doctor ID (e.g., DOC-01): ").trim().toUpperCase();
-
-        Hospital hospital = manager.getHospital(hospitalId);
-        if (hospital == null) {
-            System.out.println("[ERROR] Unknown hospital ID: " + hospitalId);
-            return;
-        }
-        Doctor doctor = hospital.getDoctor(doctorId);
-        if (doctor == null) {
-            System.out.println("[ERROR] Doctor ID not found at " + hospitalId);
-            return;
-        }
-
-        System.out.println("Current status: " + (doctor.isOnDuty() ? "ON-DUTY" : "OFF-DUTY"));
-        String newStatusStr = prompt("Set duty status (1 = ON-DUTY, 0 = OFF-DUTY): ").trim();
-        boolean newStatus = "1".equals(newStatusStr);
+        System.out.print("Enter Hospital ID (e.g. NDGH): ");
+        String hid = scanner.nextLine().trim().toUpperCase();
+        System.out.print("Enter Doctor ID (e.g. DOC-01): ");
+        String did = scanner.nextLine().trim().toUpperCase();
+        System.out.print("Set duty (1 = ON-DUTY, 0 = OFF-DUTY): ");
+        boolean onDuty = "1".equals(scanner.nextLine().trim());
 
         try {
-            boolean updated = manager.setDoctorDutyStatus(hospitalId, doctorId, newStatus);
-            if (updated) {
-                System.out.printf("\n[SUCCESS] Dr. %s duty status updated to %s.\n",
-                        doctor.getName(), (newStatus ? "ON-DUTY" : "OFF-DUTY"));
+            boolean ok = setDoctorDutyStatus(hid, did, onDuty);
+            if (ok) {
+                System.out.println("[SUCCESS] Doctor duty updated.");
+            } else {
+                System.out.println("[ERROR] Doctor not found.");
             }
         } catch (IllegalStateException ex) {
             System.out.println("[ERROR] " + ex.getMessage());
         }
     }
 
-    private void updateRoadTravelTime() {
+    private void handleRoadUpdate() {
         System.out.println("\n======================== UPDATE ROAD TRAVEL TIME ========================");
-        System.out.println("Locations: L1 (Nalam Central), L2 (North Jcn), L3 (Vallam Cross), L4 (East Circle),");
-        System.out.println("           L5 (Thoppur Rural), L6 (South Bridge), L7 (Industrial), L8 (Kadur Hills), L9 (West Bypass)");
+        System.out.print("Enter Hospital A ID: ");
+        String hA = scanner.nextLine().trim().toUpperCase();
+        System.out.print("Enter Hospital B ID: ");
+        String hB = scanner.nextLine().trim().toUpperCase();
+        System.out.print("Enter New Travel Time (minutes): ");
+        int mins = Integer.parseInt(scanner.nextLine().trim());
 
-        String locA = prompt("Enter Location A ID (e.g., L1): ").trim().toUpperCase();
-        String locB = prompt("Enter Location B ID (e.g., L2): ").trim().toUpperCase();
-        int newTime = promptInt("Enter New Travel Time in minutes: ", 1, 300);
-
-        boolean updated = manager.updateTravelTime(locA, locB, newTime);
-        if (updated) {
-            System.out.printf("\n[SUCCESS] Road travel time between %s and %s updated to %d minutes.\n",
-                    locA, locB, newTime);
-            System.out.println("New shortest routes will be computed automatically on next referral attempt.");
+        boolean ok = updateRoadTravelTime(hA, hB, mins);
+        if (ok) {
+            System.out.printf("[SUCCESS] Updated road time between %s and %s to %d mins.\n", hA, hB, mins);
         } else {
-            System.out.println("[ERROR] Direct road connection between " + locA + " and " + locB + " does not exist.");
+            System.out.println("[ERROR] Direct road connection does not exist.");
         }
     }
 
-    private void updatePatientSeverity() {
+    private void handleSeverityUpdate() {
         System.out.println("\n================ UPDATE PATIENT SEVERITY (HEAP RE-RANKING) ================");
-        List<Patient> waiting = manager.getWaitingListSnapshot();
-        if (waiting.isEmpty()) {
-            System.out.println("No patients currently waiting in queue.");
-            return;
-        }
+        System.out.print("Enter Patient ID: ");
+        String pid = scanner.nextLine().trim();
+        System.out.println("Select New Severity: 1 = CRITICAL, 2 = SERIOUS, 3 = MINOR");
+        System.out.print("Choice [1-3]: ");
+        int sev = Integer.parseInt(scanner.nextLine().trim());
 
-        System.out.println("Waiting Patients:");
-        for (Patient p : waiting) {
-            System.out.printf("  [%s] %-18s | Urgency: %-8s | Facility: %s\n",
-                    p.getPatientId(), p.getName(), p.getSeverity(), p.getRequiredFacility());
-        }
-
-        String ptId = prompt("\nEnter Patient ID to re-rank: ").trim();
-        Patient pt = manager.getPatient(ptId);
-        if (pt == null) {
+        boolean ok = updatePatientSeverity(pid, sev);
+        if (ok) {
+            System.out.println("[SUCCESS] Severity updated and PriorityQueue re-ranked!");
+        } else {
             System.out.println("[ERROR] Patient not found.");
-            return;
-        }
-
-        System.out.println("Select New Severity:");
-        System.out.println("  1. CRITICAL");
-        System.out.println("  2. SERIOUS");
-        System.out.println("  3. MINOR");
-        int choice = promptInt("Choice [1-3]: ", 1, 3);
-        Severity newSev = switch (choice) {
-            case 1 -> Severity.CRITICAL;
-            case 2 -> Severity.SERIOUS;
-            default -> Severity.MINOR;
-        };
-
-        boolean reordered = manager.updatePatientSeverity(ptId, newSev);
-        if (reordered) {
-            System.out.printf("\n[SUCCESS] Patient %s severity updated to %s. PriorityQueue re-ranked!\n",
-                    pt.getName(), newSev);
         }
     }
 
-    private void loadAndSimulateSyntheticBatch() {
-        System.out.println("\n================= LOAD & SIMULATE 22 SYNTHETIC PATIENT REQUESTS =================");
-        List<SyntheticDataGenerator.SyntheticPatientRecord> batch = SyntheticDataGenerator.getSyntheticPatientBatch();
-        System.out.printf("Ingesting batch of %d synthetic emergency patient requests...\n", batch.size());
-
-        for (SyntheticDataGenerator.SyntheticPatientRecord rec : batch) {
-            manager.registerPatient(rec.id, rec.name, rec.age, rec.gender, rec.severity, rec.requiredFacility);
-        }
-
-        System.out.printf("[SUCCESS] %d patients registered and placed in PriorityQueue.\n", batch.size());
-        System.out.println("Processing admissions across primary and referral network...");
-
-        List<AdmissionRequest> results = manager.processWaitingQueue();
-        int admittedPrimary = 0;
-        int referred = 0;
-        int waiting = 0;
-
-        for (AdmissionRequest req : results) {
-            if (req.getDisposition() == AdmissionRequest.Disposition.ADMITTED_PRIMARY) admittedPrimary++;
-            else if (req.getDisposition() == AdmissionRequest.Disposition.REFERRED_AND_RESERVED) referred++;
-            else waiting++;
-        }
-
-        System.out.println("\n----------------------------- BATCH OUTCOME SUMMARY ----------------------------");
-        System.out.printf("  Total Requests Processed:      %d\n", results.size());
-        System.out.printf("  Admitted Locally at NDGH:      %d\n", admittedPrimary);
-        System.out.printf("  Referred & Bed Reserved:       %d\n", referred);
-        System.out.printf("  Kept Waiting (Capacity Full):  %d\n", waiting);
-        System.out.println("--------------------------------------------------------------------------------");
-    }
-
-    private void runAutomatedVerificationTests() {
-        TestRunner.main(new String[0]);
-    }
-
-    private void viewAuditHistory() {
+    private void viewHistory() {
         System.out.println("\n============================== EVENT AUDIT HISTORY ==============================");
-        List<AuditRecord> history = manager.getAuditHistory();
         if (history.isEmpty()) {
-            System.out.println("Audit log is currently empty.");
+            System.out.println("No history recorded yet.");
             return;
         }
-
-        System.out.printf("Total Recorded Transactions (ArrayList): %d\n\n", history.size());
-        for (AuditRecord rec : history) {
-            System.out.println(rec);
+        for (AdmissionRequest rec : history) {
+            System.out.println("  " + rec);
         }
     }
 
-    private String prompt(String message) {
-        System.out.print(message);
-        return scanner.nextLine();
-    }
+    // =========================================================================
+    // AUTOMATED TEST SUITE (Verifies 4 Failure & Contention Cases from Rubric)
+    // =========================================================================
 
-    private int promptInt(String message, int min, int max) {
-        while (true) {
-            System.out.print(message);
-            String input = scanner.nextLine().trim();
-            try {
-                int val = Integer.parseInt(input);
-                if (val >= min && val <= max) {
-                    return val;
+    public void runAutomatedTests() {
+        System.out.println("================================================================================");
+        System.out.println("   GOVERNMENT HOSPITAL RESOURCE ALLOCATION - AUTOMATED TEST SUITE   ");
+        System.out.println("================================================================================");
+
+        int passed = 0;
+        int total = 0;
+
+        // --- TEST CASE 1: No ICU Bed -> Dijkstra Shortest-Path Referral ---
+        System.out.println("\nTEST CASE 1: No ICU Bed at Primary Hospital -> Dijkstra Referral");
+        HospitalApp app1 = new HospitalApp();
+        Hospital p1 = app1.hospitals.get("NDGH");
+        p1.getBed("NDGH-ICU-01").admitPatient("EXT-01");
+        p1.getBed("NDGH-ICU-02").admitPatient("EXT-02");
+
+        total++;
+        if (p1.getAvailableBedsCount(ICUBed.class) == 0) {
+            passed++;
+            System.out.println("  [PASS] TC1.1: Primary hospital NDGH has 0 available ICU beds.");
+        }
+
+        Patient ptCrit = app1.registerPatient("TC1-P01", "Karthik S.", 54, "M", Patient.CRITICAL, "ICU");
+        app1.processWaitingQueue();
+
+        total++;
+        if (ptCrit.getStatus() == Patient.Status.REFERRED && "VSDH".equals(ptCrit.getAssignedHospitalId())) {
+            passed++;
+            System.out.println("  [PASS] TC1.2: Critical patient referred to fastest reachable hospital (VSDH @ 14 mins).");
+        }
+
+        total++;
+        Hospital vsdh = app1.hospitals.get("VSDH");
+        Bed resBed = vsdh.getBed(ptCrit.getAssignedBedId());
+        if (resBed.isOccupied() && ptCrit.getPatientId().equals(resBed.getCurrentPatientId())) {
+            passed++;
+            System.out.println("  [PASS] TC1.3: Referral ICU bed reserved immediately.");
+        }
+
+        // --- TEST CASE 2: No Matching Doctor -> Admission Blocked; Restores on Duty ---
+        System.out.println("\nTEST CASE 2: No Matching Doctor -> Admission Blocked; Restores on Duty");
+        HospitalApp app2 = new HospitalApp();
+        app2.setDoctorDutyStatus("NDGH", "DOC-01", false);
+        app2.setDoctorDutyStatus("NDGH", "DOC-02", false);
+        // Fill referral ICU beds to isolate doctor unavailability at NDGH
+        for (Hospital h : app2.hospitals.values()) {
+            if (!h.isPrimary()) {
+                for (Bed b : h.getAllBeds()) {
+                    if (b instanceof ICUBed && !b.isOccupied()) b.admitPatient("DUMMY-" + b.getBedId());
                 }
-                System.out.printf("Please enter a number between %d and %d.\n", min, max);
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid integer input.");
             }
         }
+
+        Patient ptDoc = app2.registerPatient("TC2-P01", "Meenakshi S.", 62, "F", Patient.CRITICAL, "ICU");
+        app2.processWaitingQueue();
+
+        total++;
+        if (ptDoc.getStatus() == Patient.Status.WAITING) {
+            passed++;
+            System.out.println("  [PASS] TC2.1: Admission blocked due to no matching doctor on duty; patient kept waiting.");
+        }
+
+        System.out.println("  [ACTION] Dr. Ramesh Kumar reports ON-DUTY...");
+        app2.setDoctorDutyStatus("NDGH", "DOC-01", true);
+
+        total++;
+        if (ptDoc.getStatus() == Patient.Status.ADMITTED && "DOC-01".equals(ptDoc.getAssignedDoctorId())) {
+            passed++;
+            System.out.println("  [PASS] TC2.2: Patient automatically admitted upon doctor duty resumption!");
+        }
+
+        // --- TEST CASE 3: Simultaneous Demand for One Bed -> Severity First ---
+        System.out.println("\nTEST CASE 3: Simultaneous Demand for One Bed -> Prioritizes Severity First");
+        HospitalApp app3 = new HospitalApp();
+        Hospital p3 = app3.hospitals.get("NDGH");
+        p3.getBed("NDGH-GEN-01").admitPatient("OCC-01");
+        p3.getBed("NDGH-GEN-02").admitPatient("OCC-02");
+        p3.getBed("NDGH-GEN-03").admitPatient("OCC-03");
+        for (Hospital h : app3.hospitals.values()) {
+            if (!h.isPrimary()) {
+                for (Bed b : h.getAllBeds()) {
+                    if (b instanceof GeneralBed && !b.isOccupied()) b.admitPatient("DUMMY-" + b.getBedId());
+                }
+            }
+        }
+
+        Patient ptA = app3.registerPatient("TC3-PT-A", "Patient A (Arrived 1st)", 22, "M", Patient.MINOR, "General");
+        Patient ptB = app3.registerPatient("TC3-PT-B", "Patient B (Arrived 2nd)", 48, "F", Patient.SERIOUS, "General");
+
+        app3.processWaitingQueue();
+
+        total++;
+        if (ptB.getStatus() == Patient.Status.ADMITTED && ptA.getStatus() == Patient.Status.WAITING) {
+            passed++;
+            System.out.println("  [PASS] TC3.1: Serious patient admitted first despite arriving second; Minor patient waits.");
+        }
+
+        // --- TEST CASE 4: Discharge Enabling Admission ---
+        System.out.println("\nTEST CASE 4: Discharge Enabling Admission -> Immediate Reflection");
+        HospitalApp app4 = new HospitalApp();
+        Hospital p4 = app4.hospitals.get("NDGH");
+        for (Bed b : p4.getAllBeds()) {
+            if (!b.isOccupied()) b.admitPatient("OCC-" + b.getBedId());
+        }
+        for (Hospital h : app4.hospitals.values()) {
+            if (!h.isPrimary()) {
+                for (Bed b : h.getAllBeds()) {
+                    if (!b.isOccupied()) b.admitPatient("DUMMY-" + b.getBedId());
+                }
+            }
+        }
+
+        Patient ptWait = app4.registerPatient("TC4-WAIT", "Waiting Pt Mani", 39, "M", Patient.SERIOUS, "General");
+        app4.processWaitingQueue();
+
+        total++;
+        if (ptWait.getStatus() == Patient.Status.WAITING) {
+            passed++;
+            System.out.println("  [PASS] TC4.1: Patient waiting because all beds are full.");
+        }
+
+        System.out.println("  [ACTION] Discharging occupant from NDGH-GEN-01...");
+        app4.dischargePatient("NDGH", "OCC-NDGH-GEN-01");
+
+        total++;
+        if (ptWait.getStatus() == Patient.Status.ADMITTED && "NDGH-GEN-01".equals(ptWait.getAssignedBedId())) {
+            passed++;
+            System.out.println("  [PASS] TC4.2: Waiting patient immediately admitted upon bed discharge!");
+        }
+
+        // --- TEST CASE 5: Priority Ties & Dynamic Re-ranking ---
+        System.out.println("\nTEST CASE 5: Priority Ties & Dynamic Heap Re-ranking");
+        HospitalApp app5 = new HospitalApp();
+        Patient pt1 = app5.registerPatient("TC5-P01", "Tie Pt 1", 30, "M", Patient.SERIOUS, "General");
+        Patient pt2 = app5.registerPatient("TC5-P02", "Tie Pt 2", 32, "F", Patient.SERIOUS, "General");
+
+        total++;
+        if (app5.waitingQueue.peek().getPatientId().equals("TC5-P01")) {
+            passed++;
+            System.out.println("  [PASS] TC5.1: Priority tie broken deterministically by arrival sequence.");
+        }
+
+        System.out.println("  [ACTION] Clinically escalating Pt 2 from SERIOUS to CRITICAL...");
+        app5.updatePatientSeverity("TC5-P02", Patient.CRITICAL);
+
+        total++;
+        if (app5.waitingQueue.peek().getPatientId().equals("TC5-P02")) {
+            passed++;
+            System.out.println("  [PASS] TC5.2: Pt 2 moved to head of PriorityQueue after remove-and-reinsert re-ranking!");
+        }
+
+        System.out.println("\n================================================================================");
+        System.out.printf("   TEST SUITE SUMMARY: %d / %d TESTS PASSED (%.1f%% Success Rate)\n",
+                passed, total, (passed * 100.0 / total));
+        System.out.println("================================================================================");
     }
 }

@@ -8,7 +8,7 @@ if exist "%JBR_BIN%\java.exe" (
     set "JAVA=java"
 )
 
-if not exist "bin\com\hospital\HospitalApp.class" (
+if not exist "bin\HospitalApp.class" (
     echo Binaries not found. Running compilation first...
     call compile.bat
     if !ERRORLEVEL! NEQ 0 (
@@ -19,5 +19,5 @@ if not exist "bin\com\hospital\HospitalApp.class" (
 )
 
 echo Starting Government Hospital Resource Allocation Application...
-"!JAVA!" -cp bin com.hospital.HospitalApp %*
+"!JAVA!" -cp bin HospitalApp %*
 pause

@@ -15,9 +15,9 @@ if exist "%JBR_BIN%\javac.exe" (
 if not exist "bin" mkdir bin
 
 echo Using compiler: !JAVAC!
-echo Compiling source files...
+echo Compiling single source file HospitalApp.java...
 
-"!JAVAC!" -d bin -encoding UTF-8 src\com\hospital\*.java src\com\hospital\model\*.java src\com\hospital\policy\*.java src\com\hospital\routing\*.java src\com\hospital\service\*.java src\com\hospital\data\*.java tests\*.java
+"!JAVAC!" -d bin -encoding UTF-8 HospitalApp.java
 
 set COMPILE_STATUS=%ERRORLEVEL%
 

@@ -8,16 +8,7 @@ if exist "%JBR_BIN%\java.exe" (
     set "JAVA=java"
 )
 
-if not exist "bin\HospitalApp.class" (
-    echo Binaries not found. Running compilation first...
-    call compile.bat
-    if !ERRORLEVEL! NEQ 0 (
-        echo Compilation failed. Cannot run tests.
-        exit /b !ERRORLEVEL!
-    )
-)
-
 echo.
 echo Executing Automated Verification Test Suite...
 echo.
-"!JAVA!" -cp bin HospitalApp --test
+"!JAVA!" HospitalApp.java --test

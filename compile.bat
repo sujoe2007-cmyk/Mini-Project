@@ -12,21 +12,18 @@ if exist "%JBR_BIN%\javac.exe" (
     set "JAVAC=javac"
 )
 
-:: Clean old compiled class files
-if exist "bin" rmdir /s /q bin
-mkdir bin
-
 echo Using compiler: !JAVAC!
-echo Compiling single source file HospitalApp.java...
+echo Validating and checking compilation of HospitalApp.java...
 
-"!JAVAC!" -d bin -encoding UTF-8 HospitalApp.java
-
+if not exist "%TEMP%\hospital_build" mkdir "%TEMP%\hospital_build"
+"!JAVAC!" -encoding UTF-8 -d "%TEMP%\hospital_build" HospitalApp.java
 set COMPILE_STATUS=%ERRORLEVEL%
+if exist "%TEMP%\hospital_build" rmdir /s /q "%TEMP%\hospital_build"
 
 if %COMPILE_STATUS% EQU 0 (
     echo.
-    echo [SUCCESS] Compilation completed successfully!
-    echo Compiled class files placed in bin\
+    echo [SUCCESS] Compilation verified with 0 errors!
+    echo Application runs directly from single source: java HospitalApp.java
 ) else (
     echo.
     echo [ERROR] Compilation failed with error code %COMPILE_STATUS%.

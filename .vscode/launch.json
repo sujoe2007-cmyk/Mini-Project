@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run HospitalApp (Interactive)",
+            "request": "launch",
+            "mainClass": "HospitalApp",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "Run Automated Tests",
+            "request": "launch",
+            "mainClass": "HospitalApp",
+            "args": "--test",
+            "console": "integratedTerminal"
+        }
+    ]
+}

@@ -36,14 +36,6 @@ public abstract class Bed {
         return bedNumber;
     }
 
-    public boolean isOccupied() {
-        return occupied;
-    }
-
-    public String getCurrentPatientId() {
-        return currentPatientId;
-    }
-
     /**
      * Polymorphic requirement check to be overridden by subclasses.
      * @param facilityRequirement the facility requested by patient (e.g., "General", "ICU")
@@ -57,24 +49,35 @@ public abstract class Bed {
      * Encapsulated method to allocate this bed to a patient.
      * Throws IllegalStateException if the bed is already occupied.
      */
-    public void admitPatient(String patientId) {
+    public synchronized void admitPatient(String patientId) {
+        if (patientId == null || patientId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Patient ID cannot be null or empty.");
+        }
         if (this.occupied) {
             throw new IllegalStateException("Bed " + bedId + " is already occupied by patient " + currentPatientId);
         }
         this.occupied = true;
-        this.currentPatientId = Objects.requireNonNull(patientId, "patientId cannot be null");
+        this.currentPatientId = patientId.trim();
     }
 
     /**
      * Encapsulated method to discharge the patient and release the bed.
      * Throws IllegalStateException if the bed is not currently occupied.
      */
-    public void dischargePatient() {
+    public synchronized void dischargePatient() {
         if (!this.occupied) {
             throw new IllegalStateException("Bed " + bedId + " is already vacant.");
         }
         this.occupied = false;
         this.currentPatientId = null;
+    }
+
+    public synchronized boolean isOccupied() {
+        return occupied;
+    }
+
+    public synchronized String getCurrentPatientId() {
+        return currentPatientId;
     }
 
     @Override

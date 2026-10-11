@@ -9,9 +9,9 @@
 // =============================================================================
 
 const Severity = {
-  CRITICAL: { rank: 1, name: 'Critical', color: '#dc2626' },
-  SERIOUS:  { rank: 2, name: 'Serious',  color: '#d97706' },
-  MINOR:    { rank: 3, name: 'Minor',    color: '#16a34a' }
+  CRITICAL: { rank: 1, name: 'Critical', color: '#E06D6D' }, // Soft dusty rose
+  SERIOUS:  { rank: 2, name: 'Serious',  color: '#E29578' }, // Soft peach / pastel amber
+  MINOR:    { rank: 3, name: 'Minor',    color: '#52B788' }  // Gentle meadow sage green
 };
 
 /**

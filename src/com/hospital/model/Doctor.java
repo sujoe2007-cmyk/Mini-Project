@@ -42,15 +42,15 @@ public class Doctor {
         return hospitalId;
     }
 
-    public boolean isOnDuty() {
+    public synchronized boolean isOnDuty() {
         return onDuty;
     }
 
-    public boolean isAvailable() {
+    public synchronized boolean isAvailable() {
         return onDuty && assignedPatientId == null;
     }
 
-    public String getAssignedPatientId() {
+    public synchronized String getAssignedPatientId() {
         return assignedPatientId;
     }
 
@@ -58,7 +58,7 @@ public class Doctor {
      * Encapsulated method to update duty status.
      * @param onDuty true if reporting for duty, false if signing off
      */
-    public void setDutyStatus(boolean onDuty) {
+    public synchronized void setDutyStatus(boolean onDuty) {
         if (!onDuty && assignedPatientId != null) {
             throw new IllegalStateException("Doctor " + name + " (" + doctorId + ") cannot go off-duty while currently attending patient " + assignedPatientId);
         }
@@ -69,20 +69,23 @@ public class Doctor {
      * Encapsulated method: Assigns a patient to this doctor upon admission.
      * @param patientId ID of the admitted patient
      */
-    public void admitPatient(String patientId) {
+    public synchronized void admitPatient(String patientId) {
+        if (patientId == null || patientId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Patient ID cannot be null or empty.");
+        }
         if (!this.onDuty) {
             throw new IllegalStateException("Doctor " + name + " is currently OFF-DUTY and cannot admit patients.");
         }
         if (this.assignedPatientId != null) {
             throw new IllegalStateException("Doctor " + name + " is already attending patient " + this.assignedPatientId);
         }
-        this.assignedPatientId = Objects.requireNonNull(patientId, "patientId cannot be null");
+        this.assignedPatientId = patientId.trim();
     }
 
     /**
      * Encapsulated method: Releases the doctor when the patient is discharged.
      */
-    public void dischargePatient() {
+    public synchronized void dischargePatient() {
         if (this.assignedPatientId == null) {
             throw new IllegalStateException("Doctor " + name + " has no assigned patient to discharge.");
         }
@@ -92,7 +95,7 @@ public class Doctor {
     /**
      * Checks if this doctor is clinically appropriate for the patient's severity and facility needs.
      */
-    public boolean canTreat(Severity severity, String facilityRequirement) {
+    public synchronized boolean canTreat(Severity severity, String facilityRequirement) {
         if (!this.onDuty || this.assignedPatientId != null) {
             return false;
         }

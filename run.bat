@@ -1,9 +1,12 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-set "JBR_BIN=C:\Program Files\Android\Android Studio\jbr\bin"
-if exist "%JBR_BIN%\java.exe" (
-    set "JAVA=%JBR_BIN%\java.exe"
+if exist "%JAVA_HOME%\bin\java.exe" (
+    set "JAVA=%JAVA_HOME%\bin\java.exe"
+) else if exist "C:\Users\Thrishiga Sree\Downloads\oracleJdk-27\bin\java.exe" (
+    set "JAVA=C:\Users\Thrishiga Sree\Downloads\oracleJdk-27\bin\java.exe"
+) else if exist "C:\Program Files\Android\Android Studio\jbr\bin\java.exe" (
+    set "JAVA=C:\Program Files\Android\Android Studio\jbr\bin\java.exe"
 ) else (
     set "JAVA=java"
 )

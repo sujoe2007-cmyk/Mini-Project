@@ -70,7 +70,11 @@ public class Hospital {
      * Finds the first available bed satisfying the given facility requirement
      * using polymorphic supportsRequirement().
      */
-    public Optional<Bed> findAvailableBed(String facilityRequirement) {
+    /**
+     * Finds the first available bed satisfying the given facility requirement
+     * using polymorphic supportsRequirement().
+     */
+    public synchronized Optional<Bed> findAvailableBed(String facilityRequirement) {
         for (Bed bed : beds.values()) {
             if (!bed.isOccupied() && bed.supportsRequirement(facilityRequirement)) {
                 return Optional.of(bed);
@@ -82,7 +86,7 @@ public class Hospital {
     /**
      * Finds an available on-duty doctor who can treat the specified severity and facility requirement.
      */
-    public Optional<Doctor> findAvailableDoctor(Severity severity, String facilityRequirement) {
+    public synchronized Optional<Doctor> findAvailableDoctor(Severity severity, String facilityRequirement) {
         for (Doctor doctor : doctors.values()) {
             if (doctor.canTreat(severity, facilityRequirement)) {
                 return Optional.of(doctor);
@@ -94,7 +98,7 @@ public class Hospital {
     /**
      * Reserves bed and doctor together in an atomic admission operation.
      */
-    public void admitPatient(Patient patient, Bed bed, Doctor doctor) {
+    public synchronized void admitPatient(Patient patient, Bed bed, Doctor doctor) {
         Objects.requireNonNull(patient, "patient cannot be null");
         Objects.requireNonNull(bed, "bed cannot be null");
 
@@ -116,7 +120,10 @@ public class Hospital {
      * Discharges a patient, atomically freeing both the bed and the assigned doctor.
      * @return true if patient was found and discharged
      */
-    public boolean dischargePatient(String patientId) {
+    public synchronized boolean dischargePatient(String patientId) {
+        if (patientId == null || patientId.trim().isEmpty()) {
+            return false;
+        }
         Bed targetBed = null;
         for (Bed bed : beds.values()) {
             if (patientId.equals(bed.getCurrentPatientId())) {

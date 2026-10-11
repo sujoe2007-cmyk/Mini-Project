@@ -71,14 +71,33 @@ public class HospitalSystemManager {
     /**
      * Registers an arriving patient and places them into the PriorityQueue.
      */
-    public Patient registerPatient(String patientId, String name, int age, String gender,
-                                   Severity severity, String requiredFacility) {
+    public synchronized Patient registerPatient(String patientId, String name, int age, String gender,
+                                                Severity severity, String requiredFacility) {
+        if (patientId == null || patientId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Patient ID cannot be null or empty.");
+        }
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Patient name cannot be null or empty.");
+        }
+        if (age < 0 || age > 130) {
+            throw new IllegalArgumentException("Patient age must be between 0 and 130: " + age);
+        }
+        if (requiredFacility == null || requiredFacility.trim().isEmpty()) {
+            throw new IllegalArgumentException("Required facility cannot be null or empty.");
+        }
+        Objects.requireNonNull(severity, "severity cannot be null");
+
+        String pId = patientId.trim();
+        if (allPatients.containsKey(pId)) {
+            throw new IllegalArgumentException("A patient with ID " + pId + " is already registered.");
+        }
+
         long seq = patientSeqCounter.getAndIncrement();
-        Patient patient = new Patient(patientId, name, age, gender, severity, requiredFacility, seq);
-        allPatients.put(patientId, patient);
+        Patient patient = new Patient(pId, name.trim(), age, gender, severity, requiredFacility.trim(), seq);
+        allPatients.put(pId, patient);
         waitingQueue.offer(patient);
 
-        logAudit(AuditRecord.EventType.QUEUE_ENQUEUE, patientId, primaryHospital.getHospitalId(),
+        logAudit(AuditRecord.EventType.QUEUE_ENQUEUE, pId, primaryHospital.getHospitalId(),
                 null, null, String.format("Registered and enqueued: Urgency=%s, ReqFacility=%s (Seq #%d)",
                         severity, requiredFacility, seq));
         return patient;
@@ -89,8 +108,11 @@ public class HospitalSystemManager {
      * Demonstrates explicit remove-and-reinsert into PriorityQueue to maintain heap invariant:
      * "Priority ties must have a deterministic order; remove and reinsert queued records when their ranking fields change."
      */
-    public boolean updatePatientSeverity(String patientId, Severity newSeverity) {
-        Patient patient = allPatients.get(patientId);
+    public synchronized boolean updatePatientSeverity(String patientId, Severity newSeverity) {
+        if (patientId == null || patientId.trim().isEmpty() || newSeverity == null) {
+            return false;
+        }
+        Patient patient = allPatients.get(patientId.trim());
         if (patient == null) {
             return false;
         }
@@ -104,7 +126,7 @@ public class HospitalSystemManager {
             // Reinsert to re-heapify
             waitingQueue.offer(patient);
 
-            logAudit(AuditRecord.EventType.QUEUE_REORDER, patientId, primaryHospital.getHospitalId(),
+            logAudit(AuditRecord.EventType.QUEUE_REORDER, patient.getPatientId(), primaryHospital.getHospitalId(),
                     null, null, String.format("Severity updated from %s to %s; re-queued with updated priority",
                             old, newSeverity));
             return true;
@@ -123,7 +145,7 @@ public class HospitalSystemManager {
      *
      * @return List of AdmissionRequest transaction results
      */
-    public List<AdmissionRequest> processWaitingQueue() {
+    public synchronized List<AdmissionRequest> processWaitingQueue() {
         List<AdmissionRequest> results = new ArrayList<>();
         List<Patient> unservedPatients = new ArrayList<>();
         int reqIdCounter = 1;
@@ -203,17 +225,20 @@ public class HospitalSystemManager {
      * Automatically triggers re-evaluation of the waiting queue so released beds
      * are immediately reflected and allocated to the highest-urgency waiting patient.
      */
-    public boolean dischargePatient(String hospitalId, String patientId) {
-        Hospital hospital = hospitals.get(hospitalId);
+    public synchronized boolean dischargePatient(String hospitalId, String patientId) {
+        if (hospitalId == null || patientId == null) {
+            return false;
+        }
+        Hospital hospital = hospitals.get(hospitalId.trim());
         if (hospital == null) {
             return false;
         }
 
-        Patient patient = allPatients.get(patientId);
+        Patient patient = allPatients.get(patientId.trim());
         String bedId = (patient != null) ? patient.getAssignedBedId() : null;
         String docId = (patient != null) ? patient.getAssignedDoctorId() : null;
 
-        boolean discharged = hospital.dischargePatient(patientId);
+        boolean discharged = hospital.dischargePatient(patientId.trim());
         if (discharged) {
             if (patient != null) {
                 patient.setStatus(Patient.Status.DISCHARGED);
@@ -221,8 +246,8 @@ public class HospitalSystemManager {
                 patient.setAssignedDoctorId(null);
             }
 
-            logAudit(AuditRecord.EventType.DISCHARGE, patientId, hospitalId, bedId, docId,
-                    "Patient " + patientId + " discharged from " + hospital.getName() + "; Bed and Doctor released.");
+            logAudit(AuditRecord.EventType.DISCHARGE, patientId.trim(), hospitalId.trim(), bedId, docId,
+                    "Patient " + patientId.trim() + " discharged from " + hospital.getName() + "; Bed and Doctor released.");
 
             // Immediate reflection: Released bed triggers allocation attempt for waiting list!
             processWaitingQueue();
@@ -235,14 +260,15 @@ public class HospitalSystemManager {
      * Updates doctor duty status.
      * Fulfills: "Enter doctor duty status manually".
      */
-    public boolean setDoctorDutyStatus(String hospitalId, String doctorId, boolean onDuty) {
-        Hospital hospital = hospitals.get(hospitalId);
+    public synchronized boolean setDoctorDutyStatus(String hospitalId, String doctorId, boolean onDuty) {
+        if (hospitalId == null || doctorId == null) return false;
+        Hospital hospital = hospitals.get(hospitalId.trim());
         if (hospital == null) return false;
-        Doctor doctor = hospital.getDoctor(doctorId);
+        Doctor doctor = hospital.getDoctor(doctorId.trim());
         if (doctor == null) return false;
 
         doctor.setDutyStatus(onDuty);
-        logAudit(AuditRecord.EventType.DOCTOR_DUTY_CHANGE, null, hospitalId, null, doctorId,
+        logAudit(AuditRecord.EventType.DOCTOR_DUTY_CHANGE, null, hospitalId.trim(), null, doctorId.trim(),
                 "Dr. " + doctor.getName() + " duty status set to " + (onDuty ? "ON-DUTY" : "OFF-DUTY"));
 
         // If a doctor reported for duty, attempt to process waiting queue
@@ -256,8 +282,9 @@ public class HospitalSystemManager {
      * Updates road travel time in the weighted graph.
      * Fulfills: "Enter travel-time updates manually".
      */
-    public boolean updateTravelTime(String locationA, String locationB, int newTravelTimeMinutes) {
-        return roadGraph.updateTravelTime(locationA, locationB, newTravelTimeMinutes);
+    public synchronized boolean updateTravelTime(String locationA, String locationB, int newTravelTimeMinutes) {
+        if (locationA == null || locationB == null || newTravelTimeMinutes < 0) return false;
+        return roadGraph.updateTravelTime(locationA.trim(), locationB.trim(), newTravelTimeMinutes);
     }
 
     private void logAudit(AuditRecord.EventType type, String patientId, String hospitalId,
@@ -267,11 +294,11 @@ public class HospitalSystemManager {
     }
 
     // Getters
-    public PriorityQueue<Patient> getWaitingQueue() {
+    public synchronized PriorityQueue<Patient> getWaitingQueue() {
         return waitingQueue;
     }
 
-    public List<Patient> getWaitingListSnapshot() {
+    public synchronized List<Patient> getWaitingListSnapshot() {
         // Return a copy sorted in heap order for display without disturbing the priority queue
         List<Patient> snapshot = new ArrayList<>(waitingQueue);
         Collections.sort(snapshot);

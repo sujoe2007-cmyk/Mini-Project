@@ -4,15 +4,15 @@ This document details the selection, purpose, and algorithmic complexity of all 
 
 ---
 
-## 1. Summary Matrix
-
-| Data Structure / Algorithm | Project Component | Primary Purpose | Time Complexity | Space Complexity |
+## 1. Algorithmic Complexity Summary Matrix
+ 
+| Algorithm / Data Structure | Implementation Class | Core Project Functionality | Time Complexity (Average / Worst-Case) | Space Complexity |
 | :--- | :--- | :--- | :--- | :--- |
-| **`PriorityQueue` (Min/Max Heap)** | `waitingQueue` | Orders triage intake: Severity first, Arrival order second, Patient ID third. | Enqueue: $O(\log n)$<br>Poll: $O(\log n)$<br>Peek: $O(1)$ | $O(n)$ |
-| **`HashMap`** | `allPatients`, `hospitals`, `beds`, `doctors` | Fast, constant-time indexing and lookup of entities by unique string ID. | Average Get/Put: $O(1)$<br>Worst-case: $O(n)$ | $O(n)$ |
-| **Weighted Graph (`RoadGraph`)** | `adjacencyList`, `locations` | Models 9 road intersections and transit corridors with travel-time edge weights. | Add Vertex: $O(1)$<br>Add/Update Edge: $O(1)$<br>Query Neighbors: $O(\text{deg}(v))$ | $O(V + E)$ |
-| **`ArrayList`** | `auditHistory` | Append-only chronological audit ledger for all admissions, discharges, and referrals. | Append: $O(1)$ amortized<br>Sequential Scan: $O(n)$ | $O(n)$ |
-| **Dijkstra's Algorithm + Min-Heap** | `RoutePlanner.calculateShortestPaths` | Computes minimum travel-time paths to referral hospitals after facility filtering. | $O((V + E) \log V)$ | $O(V)$ |
+| **`PriorityQueue` (Min-Heap)** | `java.util.PriorityQueue<Patient>` | Deterministic multi-key triage ordering by `Severity` (asc rank), `arrivalSequence` (asc), and `patientId` (asc tie-break). | **Enqueue**: $O(\log N)$<br>**Poll (Extract Min)**: $O(\log N)$<br>**Peek**: $O(1)$<br>**Dynamic Re-rank (`remove + offer`)**: $O(N)$ removal + $O(\log N)$ insert | $O(N)$ |
+| **`HashMap`** | `java.util.HashMap` / `LinkedHashMap` | Constant-time indexing and lookups for hospitals, beds, doctors, and patients by unique alphanumeric string IDs. | **Get / Put / Remove**: $O(1)$ average, $O(N)$ worst-case under hash collisions | $O(N)$ |
+| **Weighted Graph (`RoadGraph`)** | Custom Adjacency List `Map<String, List<RoadEdge>>` | Models district road topology across 9 geographical nodes ($V=9, E=11$). | **Add Vertex**: $O(1)$<br>**Add/Update Edge**: $O(1)$<br>**Incident Edge Query**: $O(\text{deg}(u))$ | $O(V + E)$ |
+| **`ArrayList`** | `java.util.ArrayList<AuditRecord>` | Chronological append-only event ledger for system transitions and accountability. | **Append**: Amortized $O(1)$<br>**Sequential Iteration**: $O(N)$ | $O(N)$ |
+| **Dijkstra's Shortest Path Algorithm** | `RoutePlanner` with Min-Heap (`PriorityQueue<HeapEntry>`) | Computes fastest reachable eligible referral hospital after facility and bed capacity pre-filtering. | **Path Calculation**: $O((V + E) \log V)$<br>**Path Reconstruction**: $O(V)$ | $O(V)$ |
 
 ---
 

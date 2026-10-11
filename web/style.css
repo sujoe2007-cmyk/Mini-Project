@@ -4,82 +4,90 @@
    ========================================================================== */
 
 :root {
-  /* Official Healthcare Light Blue Palette */
-  --bg-app: #edf5fa;             /* Calming light clinical blue */
-  --bg-surface: #ffffff;         /* Crisp hospital white */
-  --bg-subtle: #f4f9fd;          /* Soothing ice blue for headers */
-  --bg-input: #ffffff;
-  --bg-hover: #f0f7fc;
+  /* Soft Pastel Healthcare Redesign Palette */
+  --bg-app: #F8F9FA;             /* Soft warm cream / off-white */
+  --bg-surface: #FFFFFF;         /* Clean surface white */
+  --bg-subtle: #F3F4F6;          /* Calming subtle off-white for headers */
+  --bg-input: #FFFFFF;
+  --bg-hover: #F0F4F8;
 
-  /* Clinical Blues */
-  --primary-blue: #0284c7;       /* Medical Clinical Blue */
-  --primary-dark: #0369a1;       /* Deep Navy Medical Blue */
-  --primary-light: #e0f2fe;      /* Soft Light Sky Blue */
-  --primary-hover: #0ea5e9;
-  --primary-border: #bae6fd;
-  --gov-ribbon-bg: #024670;
+  /* Primary Accent: Muted Sage / Mint Green */
+  --primary-sage: #68B0AB;       /* Muted sage */
+  --primary-mint: #85CDCA;       /* Fresh mint green */
+  --primary-blue: #68B0AB;       /* Primary theme accent mapped to sage */
+  --primary-dark: #4A8581;       /* Deep slate sage */
+  --primary-light: #E8F5F4;      /* Soft pale sage/mint tint */
+  --primary-hover: #589E99;
+  --primary-border: #C2E2E0;
+  --gov-ribbon-bg: #4A6B69;      /* Muted slate-forest green ribbon */
+
+  /* Secondary Accents: Soft Lavender / Gentle Slate Blue */
+  --accent-lavender: #BDB2FF;    /* Soft pastel lavender */
+  --accent-slate-blue: #A0C4FF;  /* Gentle slate blue */
+  --accent-light: #EEF2FF;
+  --accent-purple-light: #F3F0FF;
 
   /* Primary Aliases */
-  --primary: #0284c7;
-  --primary-color: #0284c7;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-faint: #94a3b8;
+  --primary: #68B0AB;
+  --primary-color: #68B0AB;
+  --text-primary: #2D3748;
+  --text-secondary: #4A5568;
+  --text-muted: #718096;
+  --text-faint: #A0AEC0;
 
-  --navy-950: #082f49;
-  --navy-900: #0f172a;
-  --navy-800: #1e293b;
-  --navy-700: #334155;
-  --slate-600: #475569;
-  --slate-500: #64748b;
-  --slate-400: #94a3b8;
-  --slate-300: #cbd5e1;
-  --slate-200: #e2e8f0;
-  --slate-100: #f1f5f9;
+  --navy-950: #1A202C;
+  --navy-900: #2D3748;
+  --navy-800: #323C4D;
+  --navy-700: #4A5568;
+  --slate-600: #718096;
+  --slate-500: #8C9BAE;
+  --slate-400: #A0AEC0;
+  --slate-300: #CBD5E0;
+  --slate-200: #E2E8F0;
+  --slate-100: #F3F4F6;
 
   /* Card & Panel Borders */
-  --border-card: #cfe2f0;
-  --border-light: #e2eef7;
-  --border-blue: #bae6fd;
+  --border-card: #E2E8F0;
+  --border-light: #EDF2F7;
+  --border-blue: #C2E2E0;
 
-  /* Clinical Triage Standards */
-  --triage-critical: #dc2626;
-  --triage-critical-bg: #fef2f2;
-  --triage-critical-border: #fca5a5;
+  /* Clinical Triage Standards: Soft Pastel Tones */
+  --triage-critical: #E06D6D;       /* Soft dusty rose */
+  --triage-critical-bg: #FFF0F0;    /* Pastel pale rose */
+  --triage-critical-border: #FFADAD;/* Muted coral / dusty rose border */
 
-  --triage-serious: #d97706;
-  --triage-serious-bg: #fffbeb;
-  --triage-serious-border: #fde68a;
+  --triage-serious: #E29578;        /* Soft peach / warm pastel amber */
+  --triage-serious-bg: #FFF6EE;     /* Pastel cream peach */
+  --triage-serious-border: #FFD6A5; /* Gentle pastel amber border */
 
-  --triage-minor: #16a34a;
-  --triage-minor-bg: #f0fdf4;
-  --triage-minor-border: #86efac;
+  --triage-minor: #52B788;          /* Gentle meadow sage green */
+  --triage-minor-bg: #F0FDF4;       /* Soft mint background */
+  --triage-minor-border: #B7E4C7;   /* Pastel mint border */
 
-  /* Bed Status Colors */
-  --bed-vacant-bg: #f0fdf4;
-  --bed-vacant-border: #86efac;
-  --bed-vacant-text: #166534;
+  /* Bed Status Colors (Pastel) */
+  --bed-vacant-bg: #F0FDF4;
+  --bed-vacant-border: #B7E4C7;
+  --bed-vacant-text: #2D6A4F;
 
-  --bed-occupied-bg: #f0f9ff;
-  --bed-occupied-border: #7dd3fc;
-  --bed-occupied-text: #0369a1;
+  --bed-occupied-bg: #F0F5FA;
+  --bed-occupied-border: #BED2EB;
+  --bed-occupied-text: #3D5A80;
 
-  /* Typography */
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Typography - Inter with robust system sans-serif fallbacks */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, Monaco, monospace;
 
-  /* Radii */
+  /* Radii - Clean rounded components */
   --radius-xs: 4px;
   --radius-sm: 6px;
-  --radius-md: 10px;
+  --radius-md: 12px;             /* Standard 12px radius */
   --radius-lg: 14px;
   --radius-full: 9999px;
 
-  /* Hospital Card Shadows */
-  --shadow-subtle: 0 1px 3px rgba(3, 105, 161, 0.05), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-card: 0 2px 8px rgba(3, 105, 161, 0.08);
-  --shadow-dropdown: 0 10px 25px rgba(15, 23, 42, 0.12);
+  /* Soft Box Shadows */
+  --shadow-subtle: 0 2px 6px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --shadow-card: 0 4px 12px rgba(104, 176, 171, 0.08), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-dropdown: 0 12px 28px rgba(45, 55, 72, 0.10);
   --transition: all 0.2s ease-in-out;
 }
 
@@ -94,11 +102,17 @@ body {
   color: var(--navy-800);
   font-family: var(--font-sans);
   font-size: 13.5px;
+  font-weight: 400;
   line-height: 1.5;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   display: flex;
   flex-direction: column;
+}
+
+button, input, select, textarea, table, th, td {
+  font-family: inherit;
 }
 
 /* ==========================================================================
@@ -231,7 +245,7 @@ body {
 
 .system-tag {
   font-size: 10.5px;
-  font-weight: 800;
+  font-weight: 600;
   text-transform: uppercase;
   color: var(--primary-dark);
   letter-spacing: 0.05em;
@@ -240,14 +254,15 @@ body {
 
 .hospital-title-block h1 {
   font-size: 19px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--navy-950);
   letter-spacing: -0.01em;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .system-sub {
   font-size: 12px;
+  font-weight: 400;
   color: var(--slate-500);
   margin-top: 2px;
 }
@@ -530,21 +545,22 @@ body {
 }
 
 .btn-primary {
-  background: var(--primary-blue);
+  background: var(--primary-sage);
   color: #ffffff;
 }
 
 .btn-primary:hover {
-  background: var(--primary-dark);
+  background: var(--primary-hover);
 }
 
 .btn-accent {
-  background: #059669;
-  color: #ffffff;
+  background: var(--primary-mint);
+  color: #2D3748;
+  font-weight: 700;
 }
 
 .btn-accent:hover {
-  background: #047857;
+  background: #72BFBC;
 }
 
 .btn-outline {
@@ -560,19 +576,19 @@ body {
 
 .btn-refresh {
   background: #ffffff;
-  border-color: #0284c7;
-  color: #0284c7;
+  border-color: var(--primary-sage);
+  color: var(--primary-dark);
   font-weight: 700;
   position: relative;
 }
 
 .btn-refresh:hover {
-  background: #e0f2fe;
+  background: var(--primary-light);
 }
 
 .btn-refresh.pulse-highlight {
-  background: #e0f2fe;
-  border-color: #0284c7;
+  background: var(--primary-light);
+  border-color: var(--primary-sage);
   animation: pulseButton 1.6s infinite;
 }
 
@@ -1127,7 +1143,7 @@ input:checked + .toggle-slider:before {
 
 .form-field label {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--slate-600);
@@ -1140,6 +1156,7 @@ input:checked + .toggle-slider:before {
   padding: 8px 12px;
   font-family: var(--font-sans);
   font-size: 12.5px;
+  font-weight: 400;
   color: var(--navy-900);
   outline: none;
   transition: var(--transition);
@@ -1147,7 +1164,7 @@ input:checked + .toggle-slider:before {
 
 .clinical-input:focus, .clinical-select:focus {
   border-color: var(--primary-blue);
-  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+  box-shadow: 0 0 0 3px rgba(104, 176, 171, 0.15);
 }
 
 .btn-admit-patient {
@@ -1155,7 +1172,7 @@ input:checked + .toggle-slider:before {
   color: #ffffff;
   padding: 10px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   justify-content: center;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -1576,21 +1593,21 @@ input:checked + .toggle-slider:before {
   font-size: 11px;
   font-weight: 800;
   width: fit-content;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: var(--radius-xs);
 }
 
-.sdg-card-3 { border-top: 4px solid #16a34a; }
-.sdg-card-3 .sdg-badge { background: #dcfce7; color: #15803d; }
-.sdg-card-3 h3 { color: #15803d; font-size: 16px; }
+.sdg-card-3 { border-top: 4px solid var(--primary-sage); }
+.sdg-card-3 .sdg-badge { background: #E8F5F4; color: var(--primary-dark); }
+.sdg-card-3 h3 { color: var(--primary-dark); font-size: 16px; }
 
-.sdg-card-9 { border-top: 4px solid #ea580c; }
-.sdg-card-9 .sdg-badge { background: #ffedd5; color: #c2410c; }
-.sdg-card-9 h3 { color: #ea580c; font-size: 16px; }
+.sdg-card-9 { border-top: 4px solid var(--accent-slate-blue); }
+.sdg-card-9 .sdg-badge { background: #EEF2FF; color: #4A6FA5; }
+.sdg-card-9 h3 { color: #3B5998; font-size: 16px; }
 
-.sdg-card-10 { border-top: 4px solid #dc2626; }
-.sdg-card-10 .sdg-badge { background: #fee2e2; color: #b91c1c; }
-.sdg-card-10 h3 { color: #dc2626; font-size: 16px; }
+.sdg-card-10 { border-top: 4px solid var(--accent-lavender); }
+.sdg-card-10 .sdg-badge { background: #F3F0FF; color: #6B5B95; }
+.sdg-card-10 h3 { color: #5E5086; font-size: 16px; }
 
 .sdg-target {
   font-weight: 700;
@@ -1640,7 +1657,7 @@ input:checked + .toggle-slider:before {
   background: #ffffff;
   border: 1px solid var(--border-card);
   padding: 12px 18px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-dropdown);
   font-size: 13px;
   font-weight: 600;
@@ -1657,10 +1674,10 @@ input:checked + .toggle-slider:before {
   to { transform: translateX(0); opacity: 1; }
 }
 
-.toast.success { border-left: 4px solid #16a34a; }
-.toast.info { border-left: 4px solid var(--primary-blue); }
-.toast.warning { border-left: 4px solid #d97706; }
-.toast.error { border-left: 4px solid #dc2626; }
+.toast.success { border-left: 4px solid var(--primary-sage); }
+.toast.info { border-left: 4px solid var(--accent-slate-blue); }
+.toast.warning { border-left: 4px solid var(--triage-serious); }
+.toast.error { border-left: 4px solid var(--triage-critical); }
 
 /* ==========================================================================
    FOOTER

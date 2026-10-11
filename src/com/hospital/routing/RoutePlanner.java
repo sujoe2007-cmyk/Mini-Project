@@ -75,6 +75,10 @@ public class RoutePlanner {
             String u = current.getLocationId();
             int currentDist = current.getDistance();
 
+            if (visited.contains(u)) {
+                continue;
+            }
+
             // Skip stale entries if already relaxed with a shorter distance
             if (currentDist > distances.get(u)) {
                 continue;

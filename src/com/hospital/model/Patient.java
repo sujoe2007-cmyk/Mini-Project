@@ -37,12 +37,24 @@ public class Patient implements Comparable<Patient> {
 
     public Patient(String patientId, String name, int age, String gender,
                    Severity severity, String requiredFacility, long arrivalSequence) {
-        this.patientId = Objects.requireNonNull(patientId, "patientId cannot be null");
-        this.name = Objects.requireNonNull(name, "name cannot be null");
+        if (patientId == null || patientId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Patient ID cannot be null or empty.");
+        }
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Patient name cannot be null or empty.");
+        }
+        if (age < 0 || age > 130) {
+            throw new IllegalArgumentException("Age must be between 0 and 130 years: " + age);
+        }
+        if (requiredFacility == null || requiredFacility.trim().isEmpty()) {
+            throw new IllegalArgumentException("Required facility cannot be null or empty.");
+        }
+        this.patientId = patientId.trim();
+        this.name = name.trim();
         this.age = age;
-        this.gender = gender;
+        this.gender = (gender != null && !gender.trim().isEmpty()) ? gender.trim() : "Unspecified";
         this.severity = Objects.requireNonNull(severity, "severity cannot be null");
-        this.requiredFacility = Objects.requireNonNull(requiredFacility, "requiredFacility cannot be null");
+        this.requiredFacility = requiredFacility.trim();
         this.arrivalSequence = arrivalSequence;
         this.arrivalTime = LocalDateTime.now();
         this.status = Status.WAITING;
@@ -65,20 +77,23 @@ public class Patient implements Comparable<Patient> {
         return gender;
     }
 
-    public Severity getSeverity() {
+    public synchronized Severity getSeverity() {
         return severity;
     }
 
-    public void setSeverity(Severity severity) {
+    public synchronized void setSeverity(Severity severity) {
         this.severity = Objects.requireNonNull(severity, "severity cannot be null");
     }
 
-    public String getRequiredFacility() {
+    public synchronized String getRequiredFacility() {
         return requiredFacility;
     }
 
-    public void setRequiredFacility(String requiredFacility) {
-        this.requiredFacility = Objects.requireNonNull(requiredFacility, "requiredFacility cannot be null");
+    public synchronized void setRequiredFacility(String requiredFacility) {
+        if (requiredFacility == null || requiredFacility.trim().isEmpty()) {
+            throw new IllegalArgumentException("Required facility cannot be null or empty.");
+        }
+        this.requiredFacility = requiredFacility.trim();
     }
 
     public long getArrivalSequence() {
@@ -89,43 +104,43 @@ public class Patient implements Comparable<Patient> {
         return arrivalTime;
     }
 
-    public Status getStatus() {
+    public synchronized Status getStatus() {
         return status;
     }
 
-    public void setStatus(Status status) {
-        this.status = status;
+    public synchronized void setStatus(Status status) {
+        this.status = Objects.requireNonNull(status, "status cannot be null");
     }
 
-    public String getAssignedHospitalId() {
+    public synchronized String getAssignedHospitalId() {
         return assignedHospitalId;
     }
 
-    public void setAssignedHospitalId(String assignedHospitalId) {
+    public synchronized void setAssignedHospitalId(String assignedHospitalId) {
         this.assignedHospitalId = assignedHospitalId;
     }
 
-    public String getAssignedBedId() {
+    public synchronized String getAssignedBedId() {
         return assignedBedId;
     }
 
-    public void setAssignedBedId(String assignedBedId) {
+    public synchronized void setAssignedBedId(String assignedBedId) {
         this.assignedBedId = assignedBedId;
     }
 
-    public String getAssignedDoctorId() {
+    public synchronized String getAssignedDoctorId() {
         return assignedDoctorId;
     }
 
-    public void setAssignedDoctorId(String assignedDoctorId) {
+    public synchronized void setAssignedDoctorId(String assignedDoctorId) {
         this.assignedDoctorId = assignedDoctorId;
     }
 
-    public String getReferralNotes() {
+    public synchronized String getReferralNotes() {
         return referralNotes;
     }
 
-    public void setReferralNotes(String referralNotes) {
+    public synchronized void setReferralNotes(String referralNotes) {
         this.referralNotes = referralNotes;
     }
 
@@ -138,7 +153,8 @@ public class Patient implements Comparable<Patient> {
     @Override
     public int compareTo(Patient other) {
         if (this == other) return 0;
-        int severityDiff = Integer.compare(this.severity.getRank(), other.severity.getRank());
+        if (other == null) return -1;
+        int severityDiff = Integer.compare(this.getSeverity().getRank(), other.getSeverity().getRank());
         if (severityDiff != 0) {
             return severityDiff;
         }
@@ -162,8 +178,7 @@ public class Patient implements Comparable<Patient> {
     }
 
     @Override
-    public String toString() {
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss");
+    public synchronized String toString() {
         return String.format("[%s] %s (Seq: %d, Age: %d, %s) - Urgency: %s, Facility: %s, Status: %s",
                 patientId, name, arrivalSequence, age, gender, severity, requiredFacility, status);
     }

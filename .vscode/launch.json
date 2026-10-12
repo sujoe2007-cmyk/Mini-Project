@@ -6,7 +6,9 @@
             "name": "Run HospitalApp (Interactive)",
             "request": "launch",
             "mainClass": "HospitalApp",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "javaExec": "C:\\Users\\Sujoe\\.jdks\\jbr-21.0.11\\bin\\java.exe",
+            "vmArgs": "-Dfile.encoding=UTF-8"
         },
         {
             "type": "java",
@@ -14,7 +16,9 @@
             "request": "launch",
             "mainClass": "HospitalApp",
             "args": "--test",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "javaExec": "C:\\Users\\Sujoe\\.jdks\\jbr-21.0.11\\bin\\java.exe",
+            "vmArgs": "-Dfile.encoding=UTF-8"
         }
     ]
 }

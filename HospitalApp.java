@@ -1,21 +1,17 @@
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
 
-// =============================================================================
-// 1. BED HIERARCHY (Inheritance & Polymorphism)
-// =============================================================================
+//Inheritance & Polymorphism
 
-/**
- * Abstract Bed base class.
- * Demonstrates:
- * - Abstraction: abstract method supportsRequirement()
- * - Encapsulation: private bed state accessible only through admitPatient() and dischargePatient()
- */
 abstract class Bed {
     private final String bedId;
     private final String hospitalId;
-    private final String bedNumber;
+    private String bedNumber;
     private boolean occupied;
     private String currentPatientId;
 
@@ -25,6 +21,17 @@ abstract class Bed {
         this.bedNumber = Objects.requireNonNull(bedNumber, "bedNumber cannot be null");
         this.occupied = false;
         this.currentPatientId = null;
+    }
+
+    public void setBedNumber(String bedNumber) {
+        this.bedNumber = Objects.requireNonNull(bedNumber, "bedNumber cannot be null");
+    }
+
+    public void setOccupied(boolean occupied) {
+        this.occupied = occupied;
+        if (!occupied) {
+            this.currentPatientId = null;
+        }
     }
 
     public String getBedId() {
@@ -140,9 +147,7 @@ class ICUBed extends Bed {
     }
 }
 
-// =============================================================================
 // 2. DOCTOR (Encapsulation)
-// =============================================================================
 
 /**
  * Represents a medical officer on duty.
@@ -151,8 +156,8 @@ class ICUBed extends Bed {
  */
 class Doctor {
     private final String doctorId;
-    private final String name;
-    private final String specialization;
+    private String name;
+    private String specialization;
     private final String hospitalId;
     private boolean onDuty;
     private String assignedPatientId;
@@ -164,6 +169,14 @@ class Doctor {
         this.hospitalId = Objects.requireNonNull(hospitalId, "hospitalId cannot be null");
         this.onDuty = onDuty;
         this.assignedPatientId = null;
+    }
+
+    public void setName(String name) {
+        this.name = Objects.requireNonNull(name, "name cannot be null");
+    }
+
+    public void setSpecialization(String specialization) {
+        this.specialization = Objects.requireNonNull(specialization, "specialization cannot be null");
     }
 
     public String getDoctorId() {
@@ -248,9 +261,7 @@ class Doctor {
     }
 }
 
-// =============================================================================
 // 3. PATIENT (PriorityQueue Deterministic Ordering)
-// =============================================================================
 
 /**
  * Represents a patient arriving at emergency triage.
@@ -386,7 +397,6 @@ class Patient implements Comparable<Patient> {
     public void setReferralNotes(String referralNotes) {
         this.referralNotes = referralNotes;
     }
-
     /**
      * Deterministic comparison:
      * 1. Severity rank ascending (1 = Critical, 2 = Serious, 3 = Minor)
@@ -402,22 +412,13 @@ class Patient implements Comparable<Patient> {
         if (seqDiff != 0) return seqDiff;
         return this.patientId.compareTo(other.patientId);
     }
-
     @Override
     public String toString() {
         return String.format("[%s] %s (Age: %d, %s) - Urgency: %s, Facility: %s, Seq: #%d, Status: %s",
                 patientId, name, age, gender, getSeverityLabel(), requiredFacility, arrivalSequence, status);
     }
 }
-
-// =============================================================================
 // 4. HOSPITAL (Composition: contains Beds and Doctors in HashMaps)
-// =============================================================================
-
-/**
- * Hospital entity demonstrating Composition:
- * Contains collections of Bed and Doctor objects indexed by ID in HashMaps.
- */
 class Hospital {
     private final String hospitalId;
     private final String name;
@@ -451,6 +452,25 @@ class Hospital {
 
     public void addDoctor(Doctor doctor) {
         doctors.put(doctor.getDoctorId(), doctor);
+    }
+
+    public boolean updateBed(String bedId, String bedNumber, Boolean occupied) {
+        Bed b = beds.get(bedId);
+        if (b == null) return false;
+        if (bedNumber != null && !bedNumber.trim().isEmpty()) b.setBedNumber(bedNumber.trim());
+        if (occupied != null) b.setOccupied(occupied);
+        return true;
+    }
+
+    public boolean updateDoctor(String doctorId, String name, String specialization, Boolean onDuty) {
+        Doctor d = doctors.get(doctorId);
+        if (d == null) return false;
+        if (name != null && !name.trim().isEmpty()) d.setName(name.trim());
+        if (specialization != null && !specialization.trim().isEmpty()) d.setSpecialization(specialization.trim());
+        if (onDuty != null) {
+            try { d.setDutyStatus(onDuty); } catch (Exception ignored) {}
+        }
+        return true;
     }
 
     public Bed getBed(String bedId) {
@@ -541,6 +561,10 @@ class Hospital {
         return doctors.values().stream().filter(Doctor::isAvailable).count();
     }
 
+    public long getAvailableDoctors() {
+        return doctors.values().stream().filter(Doctor::isAvailable).count();
+    }
+
     public long getOnDutyDoctorCount() {
         return doctors.values().stream().filter(Doctor::isOnDuty).count();
     }
@@ -554,15 +578,7 @@ class Hospital {
                 getAvailableDoctorCount(), getOnDutyDoctorCount());
     }
 }
-
-// =============================================================================
 // 5. ADMISSION REQUEST (Transaction Record for ArrayList History)
-// =============================================================================
-
-/**
- * Represents an admission, discharge, or referral event.
- * Stored in ArrayList for historical audit.
- */
 class AdmissionRequest {
     public enum Type {
         ADMISSION,
@@ -651,10 +667,7 @@ class AdmissionRequest {
                 remarks);
     }
 }
-
-// =============================================================================
 // 6. ADMISSION POLICY (Abstraction: abstracts eligibility)
-// =============================================================================
 
 /**
  * Abstraction: AdmissionPolicy abstracts patient eligibility rules.
@@ -673,10 +686,7 @@ interface AdmissionPolicy {
     }
 }
 
-// =============================================================================
 // 7. ROUTE PLANNER (Dijkstra's Algorithm + Min-Heap on Weighted Graph)
-// =============================================================================
-
 /**
  * Implements Dijkstra's Shortest Path Algorithm using a Min-Heap (PriorityQueue)
  * over the weighted graph of hospital connections.
@@ -758,11 +768,7 @@ class RoutePlanner {
         return new RouteResult(distances, predecessors);
     }
 }
-
-// =============================================================================
 // 8. REFERRAL SERVICE (Uses RoutePlanner; filters facility & capacity)
-// =============================================================================
-
 /**
  * ReferralService orchestrates hospital referrals when local admission fails.
  * Composition: ReferralService uses RoutePlanner.
@@ -778,7 +784,6 @@ class ReferralService {
     public ReferralService(RoutePlanner routePlanner) {
         this.routePlanner = Objects.requireNonNull(routePlanner, "routePlanner cannot be null");
     }
-
     public boolean referPatient(Hospital primaryHospital,
                                 Collection<Hospital> allHospitals,
                                 Map<String, Map<String, Integer>> roadGraph,
@@ -788,10 +793,8 @@ class ReferralService {
         List<Hospital> candidates = new ArrayList<>();
         Map<String, Bed> candidateBeds = new HashMap<>();
         Map<String, Doctor> candidateDoctors = new HashMap<>();
-
         for (Hospital h : allHospitals) {
             if (h.getHospitalId().equals(primaryHospital.getHospitalId())) continue;
-
             Optional<Bed> bedOpt = h.findAvailableBed(patient.getRequiredFacility());
             if (bedOpt.isPresent()) {
                 Optional<Doctor> docOpt = h.findAvailableDoctor(patient.getSeverity(), patient.getRequiredFacility());
@@ -802,11 +805,9 @@ class ReferralService {
                 }
             }
         }
-
         if (candidates.isEmpty()) {
             return false;
         }
-
         // 2. Dijkstra's Algorithm + Min-Heap from primary hospital
         RoutePlanner.RouteResult routes = routePlanner.calculateShortestPaths(roadGraph, primaryHospital.getHospitalId());
 
@@ -856,11 +857,7 @@ class ReferralService {
         return true;
     }
 }
-
-// =============================================================================
 // 9. MAIN APPLICATION (HospitalApp: Coordinator, CLI, & Automated Tests)
-// =============================================================================
-
 /**
  * Core application managing:
  * - PriorityQueue for triage
@@ -873,17 +870,17 @@ public class HospitalApp {
 
     // Necessary Data Structures from Assignment Rubric:
     // 1. PriorityQueue: Waiting patients ordered by severity and arrival sequence
-    private final PriorityQueue<Patient> waitingQueue = new PriorityQueue<>();
+    final PriorityQueue<Patient> waitingQueue = new PriorityQueue<>();
 
     // 2. HashMap: Patients, beds, doctors, and hospitals by ID
-    private final Map<String, Patient> allPatients = new LinkedHashMap<>();
-    private final Map<String, Hospital> hospitals = new LinkedHashMap<>();
+    final Map<String, Patient> allPatients = new LinkedHashMap<>();
+    final Map<String, Hospital> hospitals = new LinkedHashMap<>();
 
     // 3. Weighted Graph: Hospital and road connections with travel times (Map of Maps)
-    private final Map<String, Map<String, Integer>> roadGraph = new LinkedHashMap<>();
+    final Map<String, Map<String, Integer>> roadGraph = new LinkedHashMap<>();
 
     // 4. ArrayList: Admission, discharge, and referral history
-    private final List<AdmissionRequest> history = new ArrayList<>();
+    final List<AdmissionRequest> history = new ArrayList<>();
 
     // Services
     private final AdmissionPolicy admissionPolicy = AdmissionPolicy.standard();
@@ -899,13 +896,26 @@ public class HospitalApp {
         this.primaryHospital = initBaselineData();
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         HospitalApp app = new HospitalApp();
         if (args.length > 0 && ("--test".equalsIgnoreCase(args[0]) || "-t".equalsIgnoreCase(args[0]))) {
             app.runAutomatedTests();
             return;
         }
-        app.startMenu();
+        if (args.length > 0 && "--cli".equalsIgnoreCase(args[0])) {
+            app.startMenu();
+            return;
+        }
+        // Default: start HTTP server (web UI mode)
+        HospitalHttpServer server = new HospitalHttpServer(app, 8080);
+        server.start();
+        System.out.println("╔══════════════════════════════════════════════════╗");
+        System.out.println("║  Nalam Hospital System — Web UI Mode             ║");
+        System.out.println("║  Open http://localhost:8080  in your browser      ║");
+        System.out.println("║  Press ENTER to stop the server                  ║");
+        System.out.println("╚══════════════════════════════════════════════════╝");
+        new Scanner(System.in).nextLine();
+        server.stop();
     }
 
     private Hospital initBaselineData() {
@@ -1097,6 +1107,49 @@ public class HospitalApp {
         return true;
     }
 
+    public boolean updateDoctor(String hospitalId, String doctorId, String name, String specialization, Boolean onDuty) {
+        Hospital hosp = hospitals.get(hospitalId);
+        if (hosp == null) return false;
+        boolean ok = hosp.updateDoctor(doctorId, name, specialization, onDuty);
+        if (ok && onDuty != null && onDuty) {
+            processWaitingQueue();
+        }
+        return ok;
+    }
+
+    public boolean addDoctor(String hospitalId, String doctorId, String name, String specialization, boolean onDuty) {
+        Hospital hosp = hospitals.get(hospitalId);
+        if (hosp == null) return false;
+        Doctor doc = new Doctor(doctorId, name, specialization, hospitalId, onDuty);
+        hosp.addDoctor(doc);
+        if (onDuty) processWaitingQueue();
+        return true;
+    }
+
+    public boolean updateBed(String hospitalId, String bedId, String bedNumber, Boolean occupied) {
+        Hospital hosp = hospitals.get(hospitalId);
+        if (hosp == null) return false;
+        boolean ok = hosp.updateBed(bedId, bedNumber, occupied);
+        if (ok && occupied != null && !occupied) {
+            processWaitingQueue();
+        }
+        return ok;
+    }
+
+    public boolean addBed(String hospitalId, String bedId, String bedNumber, String bedType) {
+        Hospital hosp = hospitals.get(hospitalId);
+        if (hosp == null) return false;
+        Bed bed;
+        if ("ICU".equalsIgnoreCase(bedType)) {
+            bed = new ICUBed(bedId, hospitalId, bedNumber, true);
+        } else {
+            bed = new GeneralBed(bedId, hospitalId, bedNumber, true);
+        }
+        hosp.addBed(bed);
+        processWaitingQueue();
+        return true;
+    }
+
     public boolean updateRoadTravelTime(String hospA, String hospB, int minutes) {
         if (!roadGraph.containsKey(hospA) || !roadGraph.get(hospA).containsKey(hospB)) {
             return false;
@@ -1109,12 +1162,8 @@ public class HospitalApp {
     // --- Interactive Console Menu ---
 
     public void startMenu() {
-        System.out.println("================================================================================");
         System.out.println("     GOVERNMENT HOSPITAL EMERGENCY RESOURCE ALLOCATION SYSTEM (NALAM DIST)      ");
-        System.out.println("================================================================================");
         System.out.println("  Core Tech: Pure Java SE | Clean OOP | PriorityQueue | HashMap | Graph | Heap  ");
-        System.out.println("================================================================================");
-
         boolean running = true;
         while (running) {
             System.out.println("\n---------------------------------- MAIN MENU -----------------------------------");
@@ -1329,19 +1378,15 @@ public class HospitalApp {
         }
     }
 
-    // =========================================================================
     // AUTOMATED TEST SUITE (Verifies 4 Failure & Contention Cases from Rubric)
-    // =========================================================================
 
     public void runAutomatedTests() {
-        System.out.println("================================================================================");
         System.out.println("   GOVERNMENT HOSPITAL RESOURCE ALLOCATION - AUTOMATED TEST SUITE   ");
-        System.out.println("================================================================================");
 
         int passed = 0;
         int total = 0;
 
-        // --- TEST CASE 1: No ICU Bed -> Dijkstra Shortest-Path Referral ---
+        //  TEST CASE 1: No ICU Bed -> Dijkstra Shortest-Path Referral 
         System.out.println("\nTEST CASE 1: No ICU Bed at Primary Hospital -> Dijkstra Referral");
         HospitalApp app1 = new HospitalApp();
         Hospital p1 = app1.hospitals.get("NDGH");
@@ -1371,7 +1416,7 @@ public class HospitalApp {
             System.out.println("  [PASS] TC1.3: Referral ICU bed reserved immediately.");
         }
 
-        // --- TEST CASE 2: No Matching Doctor -> Admission Blocked; Restores on Duty ---
+        //  TEST CASE 2: No Matching Doctor -> Admission Blocked; Restores on Duty 
         System.out.println("\nTEST CASE 2: No Matching Doctor -> Admission Blocked; Restores on Duty");
         HospitalApp app2 = new HospitalApp();
         app2.setDoctorDutyStatus("NDGH", "DOC-01", false);
@@ -1403,7 +1448,7 @@ public class HospitalApp {
             System.out.println("  [PASS] TC2.2: Patient automatically admitted upon doctor duty resumption!");
         }
 
-        // --- TEST CASE 3: Simultaneous Demand for One Bed -> Severity First ---
+        //  TEST CASE 3: Simultaneous Demand for One Bed -> Severity First 
         System.out.println("\nTEST CASE 3: Simultaneous Demand for One Bed -> Prioritizes Severity First");
         HospitalApp app3 = new HospitalApp();
         Hospital p3 = app3.hospitals.get("NDGH");
@@ -1429,7 +1474,7 @@ public class HospitalApp {
             System.out.println("  [PASS] TC3.1: Serious patient admitted first despite arriving second; Minor patient waits.");
         }
 
-        // --- TEST CASE 4: Discharge Enabling Admission ---
+        //  TEST CASE 4: Discharge Enabling Admission 
         System.out.println("\nTEST CASE 4: Discharge Enabling Admission -> Immediate Reflection");
         HospitalApp app4 = new HospitalApp();
         Hospital p4 = app4.hospitals.get("NDGH");
@@ -1462,7 +1507,7 @@ public class HospitalApp {
             System.out.println("  [PASS] TC4.2: Waiting patient immediately admitted upon bed discharge!");
         }
 
-        // --- TEST CASE 5: Priority Ties & Dynamic Re-ranking ---
+        // TEST CASE 5: Priority Ties & Dynamic Re-ranking 
         System.out.println("\nTEST CASE 5: Priority Ties & Dynamic Heap Re-ranking");
         HospitalApp app5 = new HospitalApp();
         Patient pt1 = app5.registerPatient("TC5-P01", "Tie Pt 1", 30, "M", Patient.SERIOUS, "General");
@@ -1482,10 +1527,530 @@ public class HospitalApp {
             passed++;
             System.out.println("  [PASS] TC5.2: Pt 2 moved to head of PriorityQueue after remove-and-reinsert re-ranking!");
         }
-
-        System.out.println("\n================================================================================");
         System.out.printf("   TEST SUITE SUMMARY: %d / %d TESTS PASSED (%.1f%% Success Rate)\n",
                 passed, total, (passed * 100.0 / total));
-        System.out.println("================================================================================");
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EMBEDDED HTTP SERVER  (Java built-in com.sun.net.httpserver)
+// Serves the web UI on port 8080 AND acts as REST API back-end.
+// ═══════════════════════════════════════════════════════════════
+class HospitalHttpServer {
+    private final com.sun.net.httpserver.HttpServer server;
+    private final HospitalApp app;
+    private static final DateTimeFormatter TS_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    // Path to the web/ folder (sibling of HospitalApp.java)
+    private static final String WEB_DIR;
+    static {
+        File dir = new File("web");
+        if (!dir.exists()) {
+            try {
+                File loc = new File(HospitalHttpServer.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+                File baseDir = loc.isDirectory() ? loc : loc.getParentFile();
+                File candidate = new File(baseDir, "web");
+                if (candidate.exists()) {
+                    dir = candidate;
+                }
+            } catch (Exception ignored) {}
+        }
+        WEB_DIR = dir.getAbsolutePath();
+    }
+
+    public HospitalHttpServer(HospitalApp app, int port) throws IOException {
+        this.app = app;
+        this.server = com.sun.net.httpserver.HttpServer.create(new InetSocketAddress("localhost", port), 0);
+        // Static file server (serves index.html, style.css, app.js)
+        server.createContext("/",          this::handleStatic);
+        // API endpoints
+        server.createContext("/api/status",           this::handleStatus);
+        server.createContext("/api/stats",            this::handleStats);
+        server.createContext("/api/hospitals",        this::handleHospitals);
+        server.createContext("/api/hospitals/detail", this::handleHospitalsDetail);
+        server.createContext("/api/patients",         this::handlePatients);
+        server.createContext("/api/patients/register",this::handleRegister);
+        server.createContext("/api/patients/discharge",this::handleDischarge);
+        server.createContext("/api/patients/severity",this::handleSeverity);
+        server.createContext("/api/queue",            this::handleQueue);
+        server.createContext("/api/queue/process",    this::handleProcessQueue);
+        server.createContext("/api/routes",           this::handleRoutes);
+        server.createContext("/api/roads",            this::handleRoads);
+        server.createContext("/api/roads/update",     this::handleRoadUpdate);
+        server.createContext("/api/doctors/duty",     this::handleDoctorDuty);
+        server.createContext("/api/history",          this::handleHistory);
+        server.createContext("/api/auth/login",       this::handleAuthLogin);
+        server.createContext("/api/auth/signup",      this::handleAuthSignup);
+        server.createContext("/api/doctors/update",   this::handleDoctorUpdate);
+        server.createContext("/api/doctors/add",      this::handleDoctorAdd);
+        server.createContext("/api/beds/update",      this::handleBedUpdate);
+        server.createContext("/api/beds/add",         this::handleBedAdd);
+        server.setExecutor(null);
+    }
+
+    public void start() { server.start(); }
+    public void stop()  { server.stop(0); }
+
+    // ── CORS + response helpers ──────────────────────────────────
+    private void cors(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        ex.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        ex.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        ex.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+    }
+    private void json(com.sun.net.httpserver.HttpExchange ex, int code, String body) throws IOException {
+        cors(ex);
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        ex.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+        ex.sendResponseHeaders(code, bytes.length);
+        try (OutputStream os = ex.getResponseBody()) { os.write(bytes); }
+    }
+    private String readBody(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        try (InputStream is = ex.getRequestBody()) { return new String(is.readAllBytes(), StandardCharsets.UTF_8); }
+    }
+    // Tiny JSON parser helpers (avoids external deps)
+    private String jStr(String json, String key) {
+        String pattern = "\"" + key + "\"";
+        int i = json.indexOf(pattern);
+        if (i < 0) return null;
+        int colon = json.indexOf(':', i + pattern.length());
+        if (colon < 0) return null;
+        int start = json.indexOf('"', colon + 1);
+        if (start < 0) { // might be number/bool
+            int end = json.indexOf(',', colon + 1);
+            if (end < 0) end = json.indexOf('}', colon + 1);
+            return json.substring(colon + 1, end).trim();
+        }
+        int end = json.indexOf('"', start + 1);
+        return json.substring(start + 1, end);
+    }
+    private Integer jInt(String json, String key) {
+        String v = jStr(json, key);
+        if (v == null) return null;
+        try { return Integer.parseInt(v.trim()); } catch (NumberFormatException e) { return null; }
+    }
+    private Boolean jBool(String json, String key) {
+        String v = jStr(json, key);
+        if (v == null) return null;
+        return "true".equalsIgnoreCase(v.trim());
+    }
+
+    // ── Static file server ──────────────────────────────────────
+    private void handleStatic(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        if ("OPTIONS".equals(ex.getRequestMethod())) { cors(ex); ex.sendResponseHeaders(204, -1); return; }
+        String path = ex.getRequestURI().getPath();
+        if (path.equals("/") || path.isEmpty()) path = "/index.html";
+        File file = new File(WEB_DIR + path);
+        if (!file.exists() || file.isDirectory()) {
+            String body = "404 Not Found";
+            ex.sendResponseHeaders(404, body.length());
+            try (OutputStream os = ex.getResponseBody()) { os.write(body.getBytes()); }
+            return;
+        }
+        String mime = "text/html";
+        if (path.endsWith(".css"))  mime = "text/css";
+        if (path.endsWith(".js"))   mime = "application/javascript";
+        if (path.endsWith(".png"))  mime = "image/png";
+        if (path.endsWith(".ico"))  mime = "image/x-icon";
+        byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
+        ex.getResponseHeaders().set("Content-Type", mime);
+        ex.sendResponseHeaders(200, bytes.length);
+        try (OutputStream os = ex.getResponseBody()) { os.write(bytes); }
+    }
+
+    // ── /api/status ─────────────────────────────────────────────
+    private void handleStatus(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        json(ex, 200, "{\"ok\":true}");
+    }
+
+    // ── /api/stats ──────────────────────────────────────────────
+    private void handleStats(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        long icuAvail = 0, genAvail = 0, docsAvail = 0;
+        for (Hospital h : app.hospitals.values()) {
+            icuAvail  += h.getAvailableBedsCount(ICUBed.class);
+            genAvail  += h.getAvailableBedsCount(GeneralBed.class);
+            docsAvail += h.getAvailableDoctors();
+        }
+        String body = String.format(
+            "{\"waitingQueue\":%d,\"availableIcu\":%d,\"availableGeneral\":%d,\"availableDoctors\":%d}",
+            app.waitingQueue.size(), icuAvail, genAvail, docsAvail);
+        json(ex, 200, body);
+    }
+
+    // ── /api/hospitals  (summary cards) ─────────────────────────
+    private void handleHospitals(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (Hospital h : app.hospitals.values()) {
+            if (!first) sb.append(','); first = false;
+            sb.append(hospitalSummaryJson(h));
+        }
+        sb.append("]");
+        json(ex, 200, sb.toString());
+    }
+
+    // ── /api/hospitals/detail  (beds + doctors) ──────────────────
+    private void handleHospitalsDetail(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (Hospital h : app.hospitals.values()) {
+            if (!first) sb.append(','); first = false;
+            sb.append("{");
+            sb.append(hospitalSummaryJson(h).replaceFirst("^\\{", "").replaceFirst("}$", ""));
+            // beds
+            sb.append(",\"beds\":[");
+            boolean fb = true;
+            for (Bed b : h.getAllBeds()) {
+                if (!fb) sb.append(','); fb = false;
+                sb.append(String.format(
+                    "{\"bedId\":\"%s\",\"bedNumber\":\"%s\",\"bedType\":\"%s\",\"occupied\":%b,\"currentPatientId\":%s}",
+                    b.getBedId(), b.getBedNumber(), b.getBedType(), b.isOccupied(),
+                    b.getCurrentPatientId() != null ? "\"" + b.getCurrentPatientId() + "\"" : "null"));
+            }
+            sb.append("],\"doctors\":[");
+            boolean fd = true;
+            for (Doctor d : h.getAllDoctors()) {
+                if (!fd) sb.append(','); fd = false;
+                sb.append(String.format(
+                    "{\"doctorId\":\"%s\",\"name\":\"%s\",\"specialization\":\"%s\",\"onDuty\":%b,\"assignedPatientId\":%s}",
+                    d.getDoctorId(), d.getName(), d.getSpecialization(), d.isOnDuty(),
+                    d.getAssignedPatientId() != null ? "\"" + d.getAssignedPatientId() + "\"" : "null"));
+            }
+            sb.append("]}");
+        }
+        sb.append("]");
+        json(ex, 200, sb.toString());
+    }
+
+    // ── /api/patients ────────────────────────────────────────────
+    private void handlePatients(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (Patient p : app.allPatients.values()) {
+            if (!first) sb.append(','); first = false;
+            sb.append(patientJson(p));
+        }
+        sb.append("]");
+        json(ex, 200, sb.toString());
+    }
+
+    // ── /api/patients/register ───────────────────────────────────
+    private void handleRegister(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex,405,"{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String name     = jStr(body, "name");
+        Integer age     = jInt(body, "age");
+        String gender   = jStr(body, "gender");
+        Integer sev     = jInt(body, "severity");
+        String facility = jStr(body, "requiredFacility");
+        Boolean procNow = jBool(body, "processNow");
+        if (name == null || age == null || sev == null || facility == null) {
+            json(ex, 400, "{\"success\":false,\"message\":\"Missing fields\"}"); return;
+        }
+        String id = "P-" + (app.allPatients.size() + 101);
+        app.registerPatient(id, name, age, gender != null ? gender : "M", sev, facility);
+        String outJson = "[]";
+        if (Boolean.TRUE.equals(procNow)) {
+            List<String> outcomes = app.processWaitingQueue();
+            outJson = "[" + outcomes.stream()
+                .map(o -> "\"" + o.replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
+                .collect(Collectors.joining(",")) + "]";
+        }
+        json(ex, 200, String.format("{\"success\":true,\"patientId\":\"%s\",\"outcomes\":%s}", id, outJson));
+    }
+
+    // ── /api/patients/discharge ──────────────────────────────────
+    private void handleDischarge(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex,405,"{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String hospId = jStr(body, "hospitalId");
+        String patId  = jStr(body, "patientId");
+        if (hospId == null || patId == null) { json(ex,400,"{\"success\":false,\"message\":\"Missing fields\"}"); return; }
+        boolean ok = app.dischargePatient(hospId, patId);
+        json(ex, 200, "{\"success\":" + ok + "}");
+    }
+
+    // ── /api/patients/severity ───────────────────────────────────
+    private void handleSeverity(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex,405,"{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String patId = jStr(body, "patientId");
+        Integer sev  = jInt(body, "severity");
+        if (patId == null || sev == null) { json(ex,400,"{\"success\":false,\"message\":\"Missing fields\"}"); return; }
+        boolean ok = app.updatePatientSeverity(patId, sev);
+        json(ex, 200, "{\"success\":" + ok + "}");
+    }
+
+    // ── /api/queue ───────────────────────────────────────────────
+    private void handleQueue(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        List<Patient> snapshot = new ArrayList<>(app.waitingQueue);
+        Collections.sort(snapshot);
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (Patient p : snapshot) { if (!first) sb.append(','); first = false; sb.append(patientJson(p)); }
+        sb.append("]");
+        json(ex, 200, sb.toString());
+    }
+
+    // ── /api/queue/process ───────────────────────────────────────
+    private void handleProcessQueue(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex,405,"{\"error\":\"POST only\"}"); return; }
+        List<String> outcomes = app.processWaitingQueue();
+        String outJson = "[" + outcomes.stream()
+            .map(o -> "\"" + o.replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
+            .collect(Collectors.joining(",")) + "]";
+        json(ex, 200, "{\"success\":true,\"outcomes\":" + outJson + "}");
+    }
+
+    // ── /api/routes (Dijkstra results) ───────────────────────────
+    private void handleRoutes(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        RoutePlanner rp = new RoutePlanner();
+        RoutePlanner.RouteResult result = rp.calculateShortestPaths(app.roadGraph, "NDGH");
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (Hospital h : app.hospitals.values()) {
+            if (h.isPrimary()) continue;
+            if (!first) sb.append(','); first = false;
+            int mins = result.getDistanceTo(h.getHospitalId());
+            List<String> path = result.getPathTo("NDGH", h.getHospitalId());
+            String pathStr = String.join(" → ", path).replace("\"", "\\\"");
+            sb.append(String.format("{\"hospitalId\":\"%s\",\"name\":\"%s\",\"minutes\":%d,\"path\":\"%s\"}",
+                h.getHospitalId(), h.getName(), mins, pathStr));
+        }
+        sb.append("]");
+        json(ex, 200, sb.toString());
+    }
+
+    // ── /api/roads (raw graph edges) ─────────────────────────────
+    private void handleRoads(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        Set<String> seen = new HashSet<>();
+        StringBuilder edges = new StringBuilder("[");
+        boolean first = true;
+        for (Map.Entry<String, Map<String, Integer>> entry : app.roadGraph.entrySet()) {
+            for (Map.Entry<String, Integer> road : entry.getValue().entrySet()) {
+                String key = entry.getKey().compareTo(road.getKey()) < 0
+                    ? entry.getKey() + "-" + road.getKey()
+                    : road.getKey() + "-" + entry.getKey();
+                if (seen.add(key)) {
+                    if (!first) edges.append(','); first = false;
+                    edges.append(String.format("{\"a\":\"%s\",\"b\":\"%s\",\"mins\":%d}",
+                        entry.getKey(), road.getKey(), road.getValue()));
+                }
+            }
+        }
+        edges.append("]");
+        json(ex, 200, "{\"edges\":" + edges + "}");
+    }
+
+    // ── /api/roads/update ────────────────────────────────────────
+    private void handleRoadUpdate(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex,405,"{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String a  = jStr(body, "hospA");
+        String b  = jStr(body, "hospB");
+        Integer m = jInt(body, "minutes");
+        if (a == null || b == null || m == null) { json(ex,400,"{\"success\":false,\"message\":\"Missing fields\"}"); return; }
+        boolean ok = app.updateRoadTravelTime(a, b, m);
+        json(ex, 200, "{\"success\":" + ok + "}");
+    }
+
+    // ── /api/doctors/duty ────────────────────────────────────────
+    private void handleDoctorDuty(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex,405,"{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String hospId = jStr(body, "hospitalId");
+        String docId  = jStr(body, "doctorId");
+        Boolean onDuty = jBool(body, "onDuty");
+        if (hospId == null || docId == null || onDuty == null) { json(ex,400,"{\"success\":false,\"message\":\"Missing fields\"}"); return; }
+        try {
+            boolean ok = app.setDoctorDutyStatus(hospId, docId, onDuty);
+            json(ex, 200, "{\"success\":" + ok + "}");
+        } catch (IllegalStateException e) {
+            json(ex, 200, String.format("{\"success\":false,\"message\":\"%s\"}", e.getMessage().replace("\"", "\\\"")) );
+        }
+    }
+
+    // ── /api/history ─────────────────────────────────────────────
+    private void handleHistory(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        List<AdmissionRequest> rev = new ArrayList<>(app.history);
+        Collections.reverse(rev);
+        for (AdmissionRequest r : rev) {
+            if (!first) sb.append(','); first = false;
+            sb.append(String.format(
+                "{\"timestamp\":\"%s\",\"type\":\"%s\",\"patientId\":%s,\"patientName\":%s,\"hospitalId\":%s,\"bedId\":%s,\"doctorId\":%s,\"travelTime\":%d,\"remarks\":\"%s\"}",
+                r.getTimestamp().format(TS_FMT),
+                r.getType(),
+                r.getPatientId()  != null ? "\"" + r.getPatientId()  + "\"" : "null",
+                r.getPatientName()!= null ? "\"" + r.getPatientName() + "\"" : "null",
+                r.getHospitalId() != null ? "\"" + r.getHospitalId() + "\"" : "null",
+                r.getBedId()      != null ? "\"" + r.getBedId()      + "\"" : "null",
+                r.getDoctorId()   != null ? "\"" + r.getDoctorId()   + "\"" : "null",
+                r.getTravelTimeMinutes(),
+                (r.getRemarks() != null ? r.getRemarks() : "").replace("\\", "\\\\").replace("\"", "\\\"")
+            ));
+        }
+        sb.append("]");
+        json(ex, 200, sb.toString());
+    }
+
+    // ── Authentication Endpoints ─────────────────────────────────
+    static class AuthAccount {
+        final String name;
+        final String email;
+        final String password;
+        final String role;
+        final String hospital;
+        AuthAccount(String name, String email, String password, String role, String hospital) {
+            this.name = name; this.email = email; this.password = password; this.role = role; this.hospital = hospital;
+        }
+    }
+    private static final Map<String, AuthAccount> ACCOUNTS = new java.util.concurrent.ConcurrentHashMap<>();
+    static {
+        ACCOUNTS.put("admin@nalam.gov.in", new AuthAccount("District Medical Director", "admin@nalam.gov.in", "nalam@2026", "Hospital Administrator", "NDGH"));
+        ACCOUNTS.put("doctor@nalam.gov.in", new AuthAccount("Dr. Priya Sharma", "doctor@nalam.gov.in", "nalam@2026", "Medical Officer", "NDGH"));
+        ACCOUNTS.put("nurse@nalam.gov.in", new AuthAccount("Staff Nurse Anitha", "nurse@nalam.gov.in", "nalam@2026", "Senior Nurse", "VSDH"));
+    }
+
+    private void handleAuthLogin(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex, 405, "{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String email = jStr(body, "email");
+        String pass  = jStr(body, "password");
+        if (email == null || pass == null) {
+            json(ex, 400, "{\"success\":false,\"message\":\"Missing email or password\"}");
+            return;
+        }
+        AuthAccount acc = ACCOUNTS.get(email.trim().toLowerCase());
+        if (acc != null) {
+            String jsonResp = String.format("{\"success\":true,\"user\":{\"name\":\"%s\",\"email\":\"%s\",\"role\":\"%s\",\"hospital\":\"%s\"}}",
+                acc.name, acc.email, acc.role, acc.hospital);
+            json(ex, 200, jsonResp);
+        } else {
+            String cleanName = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+            String capName = cleanName.isEmpty() ? "Staff User" : Character.toUpperCase(cleanName.charAt(0)) + (cleanName.length() > 1 ? cleanName.substring(1) : "");
+            String jsonResp = String.format("{\"success\":true,\"user\":{\"name\":\"%s\",\"email\":\"%s\",\"role\":\"Hospital Staff\",\"hospital\":\"NDGH\"}}",
+                capName, email);
+            json(ex, 200, jsonResp);
+        }
+    }
+
+    private void handleAuthSignup(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex, 405, "{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String name     = jStr(body, "name");
+        String email    = jStr(body, "email");
+        String pass     = jStr(body, "password");
+        String role     = jStr(body, "role");
+        String hospital = jStr(body, "hospital");
+        if (name == null || email == null || pass == null) {
+            json(ex, 400, "{\"success\":false,\"message\":\"Missing required fields\"}");
+            return;
+        }
+        AuthAccount acc = new AuthAccount(name, email, pass, role != null ? role : "Medical Officer", hospital != null ? hospital : "NDGH");
+        ACCOUNTS.put(email.trim().toLowerCase(), acc);
+        String jsonResp = String.format("{\"success\":true,\"user\":{\"name\":\"%s\",\"email\":\"%s\",\"role\":\"%s\",\"hospital\":\"%s\"}}",
+            acc.name, acc.email, acc.role, acc.hospital);
+        json(ex, 200, jsonResp);
+    }
+
+    // ── Resource Management Endpoints (Doctors & Beds) ───────────
+    private void handleDoctorUpdate(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex, 405, "{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String hospId = jStr(body, "hospitalId");
+        String docId  = jStr(body, "doctorId");
+        String name   = jStr(body, "name");
+        String spec   = jStr(body, "specialization");
+        Boolean onDuty= jBool(body, "onDuty");
+        if (hospId == null || docId == null) { json(ex, 400, "{\"success\":false,\"message\":\"Missing IDs\"}"); return; }
+        boolean ok = app.updateDoctor(hospId, docId, name, spec, onDuty);
+        json(ex, 200, "{\"success\":" + ok + "}");
+    }
+
+    private void handleDoctorAdd(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex, 405, "{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String hospId = jStr(body, "hospitalId");
+        String docId  = jStr(body, "doctorId");
+        String name   = jStr(body, "name");
+        String spec   = jStr(body, "specialization");
+        Boolean onDuty= jBool(body, "onDuty");
+        if (hospId == null || docId == null || name == null) { json(ex, 400, "{\"success\":false,\"message\":\"Missing fields\"}"); return; }
+        boolean ok = app.addDoctor(hospId, docId, name, spec != null ? spec : "General Medicine", onDuty != null ? onDuty : true);
+        json(ex, 200, "{\"success\":" + ok + "}");
+    }
+
+    private void handleBedUpdate(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex, 405, "{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String hospId = jStr(body, "hospitalId");
+        String bedId  = jStr(body, "bedId");
+        String bedNum = jStr(body, "bedNumber");
+        Boolean occupied = jBool(body, "occupied");
+        if (hospId == null || bedId == null) { json(ex, 400, "{\"success\":false,\"message\":\"Missing IDs\"}"); return; }
+        boolean ok = app.updateBed(hospId, bedId, bedNum, occupied);
+        json(ex, 200, "{\"success\":" + ok + "}");
+    }
+
+    private void handleBedAdd(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        cors(ex); if (preflight(ex)) return;
+        if (!"POST".equals(ex.getRequestMethod())) { json(ex, 405, "{\"error\":\"POST only\"}"); return; }
+        String body = readBody(ex);
+        String hospId = jStr(body, "hospitalId");
+        String bedId  = jStr(body, "bedId");
+        String bedNum = jStr(body, "bedNumber");
+        String bedType= jStr(body, "bedType");
+        if (hospId == null || bedId == null || bedNum == null) { json(ex, 400, "{\"success\":false,\"message\":\"Missing fields\"}"); return; }
+        boolean ok = app.addBed(hospId, bedId, bedNum, bedType != null ? bedType : "General");
+        json(ex, 200, "{\"success\":" + ok + "}");
+    }
+
+    // ── Shared helpers ───────────────────────────────────────────
+    private boolean preflight(com.sun.net.httpserver.HttpExchange ex) throws IOException {
+        if ("OPTIONS".equals(ex.getRequestMethod())) { ex.sendResponseHeaders(204, -1); return true; }
+        return false;
+    }
+
+    private long getAvailableDoctors(Hospital h) {
+        return h.getAllDoctors().stream().filter(Doctor::isAvailable).count();
+    }
+
+    private String hospitalSummaryJson(Hospital h) {
+        return String.format(
+            "{\"hospitalId\":\"%s\",\"name\":\"%s\",\"primary\":%b,\"totalBeds\":%d,\"availableBeds\":%d,\"availableIcu\":%d,\"availableGeneral\":%d,\"availableDoctors\":%d,\"onDutyDoctors\":%d}",
+            h.getHospitalId(), h.getName(), h.isPrimary(),
+            h.getTotalBedsCount(), h.getAvailableBedsCount(),
+            h.getAvailableBedsCount(ICUBed.class), h.getAvailableBedsCount(GeneralBed.class),
+            getAvailableDoctors(h), h.getOnDutyDoctorCount());
+    }
+
+    private String patientJson(Patient p) {
+        return String.format(
+            "{\"patientId\":\"%s\",\"name\":\"%s\",\"age\":%d,\"gender\":\"%s\",\"severity\":%d,\"requiredFacility\":\"%s\",\"arrivalSequence\":%d,\"status\":\"%s\",\"assignedHospitalId\":%s,\"assignedBedId\":%s,\"assignedDoctorId\":%s}",
+            p.getPatientId(), p.getName(), p.getAge(), p.getGender(), p.getSeverity(),
+            p.getRequiredFacility(), p.getArrivalSequence(), p.getStatus(),
+            p.getAssignedHospitalId()  != null ? "\"" + p.getAssignedHospitalId()  + "\"" : "null",
+            p.getAssignedBedId()       != null ? "\"" + p.getAssignedBedId()       + "\"" : "null",
+            p.getAssignedDoctorId()    != null ? "\"" + p.getAssignedDoctorId()    + "\"" : "null");
     }
 }

@@ -20,7 +20,7 @@ if not exist "bin" mkdir bin
 echo Using compiler: !JAVAC!
 echo Compiling source files and test suite...
 
-"!JAVAC!" -cp "lib\junit-4.13.2.jar;lib\hamcrest-core-1.3.jar" -d bin -encoding UTF-8 src\com\hospital\*.java src\com\hospital\model\*.java src\com\hospital\policy\*.java src\com\hospital\routing\*.java src\com\hospital\service\*.java src\com\hospital\data\*.java tests\*.java
+"!JAVAC!" -cp "lib\junit-4.13.2.jar;lib\hamcrest-core-1.3.jar;lib\mysql-connector-j-8.3.0.jar" -d bin -encoding UTF-8 src\com\hospital\*.java src\com\hospital\model\*.java src\com\hospital\policy\*.java src\com\hospital\routing\*.java src\com\hospital\service\*.java src\com\hospital\data\*.java src\com\hospital\api\*.java tests\*.java
 
 set COMPILE_STATUS=%ERRORLEVEL%
 

@@ -1,6 +1,5 @@
 package tests;
 
-import com.hospital.data.SyntheticDataGenerator;
 import com.hospital.model.*;
 import com.hospital.service.HospitalSystemManager;
 
@@ -62,7 +61,7 @@ public class TestRunner {
         System.out.println("TEST CASE 1: No ICU Bed at Primary Hospital -> Dijkstra Shortest-Path Referral");
         System.out.println("--------------------------------------------------------------------------------");
 
-        HospitalSystemManager manager = SyntheticDataGenerator.initializeSystem();
+        HospitalSystemManager manager = TestDatabaseReset.initializeCleanSystem();
         Hospital primary = manager.getPrimaryHospital();
 
         // Step 1: Artificially occupy all ICU beds at NDGH
@@ -116,7 +115,7 @@ public class TestRunner {
         System.out.println("TEST CASE 2: No Matching Doctor -> Admission Blocked & Queued; Restores on Duty");
         System.out.println("--------------------------------------------------------------------------------");
 
-        HospitalSystemManager manager = SyntheticDataGenerator.initializeSystem();
+        HospitalSystemManager manager = TestDatabaseReset.initializeCleanSystem();
         Hospital primary = manager.getPrimaryHospital();
 
         // Step 1: Set both Critical Care specialists off-duty
@@ -174,7 +173,7 @@ public class TestRunner {
         System.out.println("TEST CASE 3: Simultaneous Demand for 1 Bed -> Process Severity First, Arrival Second");
         System.out.println("--------------------------------------------------------------------------------");
 
-        HospitalSystemManager manager = SyntheticDataGenerator.initializeSystem();
+        HospitalSystemManager manager = TestDatabaseReset.initializeCleanSystem();
         Hospital primary = manager.getPrimaryHospital();
 
         // Fill all General beds except one (NDGH-GEN-04)
@@ -227,7 +226,7 @@ public class TestRunner {
         System.out.println("TEST CASE 4: Discharge Enabling Admission -> Immediate Waiting List Reflection");
         System.out.println("--------------------------------------------------------------------------------");
 
-        HospitalSystemManager manager = SyntheticDataGenerator.initializeSystem();
+        HospitalSystemManager manager = TestDatabaseReset.initializeCleanSystem();
         Hospital primary = manager.getPrimaryHospital();
 
         // Fill all beds
@@ -277,7 +276,7 @@ public class TestRunner {
         System.out.println("TEST CASE 5: Priority Ties & Dynamic Re-ranking (Remove & Reinsert Heap)");
         System.out.println("--------------------------------------------------------------------------------");
 
-        HospitalSystemManager manager = SyntheticDataGenerator.initializeSystem();
+        HospitalSystemManager manager = TestDatabaseReset.initializeCleanSystem();
 
         // 1. Two patients with identical severity (SERIOUS)
         Patient pt1 = manager.registerPatient("TC5-P01", "Tie Pt 1", 30, "M", Severity.SERIOUS, "General");

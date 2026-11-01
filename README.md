@@ -16,6 +16,10 @@ To compile and run the project, double-click or run the provided batch scripts f
 *Starts the local HTTP web server on port 8080 and automatically opens the dashboard in your default web browser.*
 *(Alternatively, simply double-click `start_website.bat` or run `.\run_ui.bat`)*
 
+The site opens at the portal sign-in page. Create a patient or hospital management account first, then sign in. Patient signup asks only for account details; the patient completes a separate care registration form inside the patient portal, and the system generates their patient ID. Management accounts no longer require a signup-code environment variable. Management API actions are restricted to signed-in management accounts.
+
+Portal accounts, patient records, allocations and audit history are stored in MySQL (`hospital_allocation_db`) using the existing `db.properties` or `MYSQL_*` connection settings. Account passwords are stored only as salted PBKDF2 hashes. MySQL must be running and configured before account creation; the portal displays a clear database error if it is unavailable. The web server creates the `portal_accounts` table automatically, and the matching DDL is also included in `schema.sql`.
+
 ### 2. Compile Java Source Code
 ```powershell
 .\compile.bat

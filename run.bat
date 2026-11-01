@@ -22,5 +22,5 @@ if not exist "bin\com\hospital\HospitalApp.class" (
 )
 
 echo Starting Government Hospital Resource Allocation Application...
-"!JAVA!" -cp bin com.hospital.HospitalApp %*
+"!JAVA!" -cp "bin;lib\mysql-connector-j-8.3.0.jar" com.hospital.HospitalApp %*
 pause

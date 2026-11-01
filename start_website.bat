@@ -5,22 +5,30 @@ echo ====================================================================
 echo   Starting Government Hospital Resource Allocation Web Application...
 echo ====================================================================
 
-where node >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
-    echo [OK] Node.js runtime detected. Starting HTTP Web Server on port 8080...
-    node "%~dp0server.js"
-    exit /b %ERRORLEVEL%
+set "PORT=%~1"
+if "%PORT%"=="" set "PORT=8080"
+
+if exist "%JAVA_HOME%\bin\java.exe" (
+    set "JAVA=%JAVA_HOME%\bin\java.exe"
+) else if exist "C:\Users\Thrishiga Sree\Downloads\oracleJdk-27\bin\java.exe" (
+    set "JAVA=C:\Users\Thrishiga Sree\Downloads\oracleJdk-27\bin\java.exe"
+) else if exist "C:\Program Files\Android\Android Studio\jbr\bin\java.exe" (
+    set "JAVA=C:\Program Files\Android\Android Studio\jbr\bin\java.exe"
+) else (
+    set "JAVA=java"
 )
 
-set "JBR_BIN=C:\Program Files\Android\Android Studio\jbr\bin"
-if exist "%JBR_BIN%\jwebserver.exe" (
-    echo [OK] Java JDK jwebserver detected. Starting web server on port 8080...
-    start "" http://localhost:8080/
-    "%JBR_BIN%\jwebserver.exe" -d "%~dp0web" -p 8080
-    exit /b %ERRORLEVEL%
+if not exist "bin\com\hospital\HospitalApp.class" (
+    echo Binaries not found. Running compilation first...
+    call compile.bat
+    if !ERRORLEVEL! NEQ 0 (
+        echo Compilation failed. Cannot start server.
+        pause
+        exit /b !ERRORLEVEL!
+    )
 )
 
-echo [FALLBACK] Starting via direct browser launch...
-start "" "%~dp0web\index.html"
-echo Dashboard launched in default browser.
-pause
+echo [OK] Starting Integrated Java Full-Stack Server (REST API + Static Web Server) on port %PORT%...
+start "" "http://localhost:%PORT%/"
+"!JAVA!" -cp "bin;lib\mysql-connector-j-8.3.0.jar" com.hospital.HospitalApp --server %PORT%
+exit /b %ERRORLEVEL%

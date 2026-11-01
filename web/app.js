@@ -8,6 +8,12 @@
 // 1. DATA STRUCTURES & ALGORITHMS (PORTED STRICTLY FROM SPECIFICATION)
 // =============================================================================
 
+let isBackendConnected = false;
+let isDatabaseConnected = false;
+let backendEverConnected = false;
+let backendSyncInProgress = false;
+const API_BASE = window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:8080';
+
 const Severity = {
   CRITICAL: { rank: 1, name: 'Critical', color: '#E06D6D' }, // Soft dusty rose
   SERIOUS:  { rank: 2, name: 'Serious',  color: '#E29578' }, // Soft peach / pastel amber
@@ -377,6 +383,12 @@ function initializeHospitals() {
 }
 
 function resetSystem() {
+  if (backendModeActive()) {
+    synchronizeBackendState()
+      .then(() => showToast('Dashboard reloaded from backend state; no records were deleted.', 'info'))
+      .catch(error => showToast(`Could not reload backend state: ${error.message}`, 'error'));
+    return;
+  }
   initializeRoadNetwork();
   initializeHospitals();
   waitingQueue = new PriorityQueue();
@@ -395,9 +407,12 @@ function resetSystem() {
 // =============================================================================
 
 function registerPatient(id, name, age, gender, severity, requiredFacility, autoProcess = true) {
+  const patientId = String(id || '').trim();
+  if (!patientId) throw new Error('Patient ID is required.');
+  if (allPatients.has(patientId)) throw new Error(`Patient ID ${patientId} is already registered.`);
   const seq = patientSeqCounter++;
   const patient = {
-    id: id || `P-${100 + seq}`,
+    id: patientId,
     name,
     age,
     gender,
@@ -449,6 +464,9 @@ function evaluateAdmission(hospital, patient) {
 }
 
 function processWaitingQueue() {
+  if (backendModeActive()) {
+    return processBackendWaitingQueue();
+  }
   if (waitingQueue.isEmpty()) return;
 
   const unserved = [];
@@ -551,6 +569,9 @@ function attemptReferral(patient) {
 let pendingDischargeNotice = null;
 
 function refreshDashboard(silent = false) {
+  if (backendModeActive()) {
+    return refreshBackendDashboard(silent);
+  }
   pendingDischargeNotice = null;
 
   const banner = document.getElementById('dischargeRefreshBanner');
@@ -573,6 +594,9 @@ function refreshDashboard(silent = false) {
 }
 
 function dischargePatient(patientId) {
+  if (backendModeActive()) {
+    return dischargeBackendPatient(patientId);
+  }
   const patient = allPatients.get(patientId);
   if (!patient || (patient.status !== 'ADMITTED_LOCAL' && patient.status !== 'REFERRED')) {
     return false;
@@ -633,6 +657,9 @@ function dischargePatient(patientId) {
 }
 
 function toggleDoctorDuty(hospitalId, doctorId, onDuty) {
+  if (backendModeActive()) {
+    return updateBackendDoctorDuty(hospitalId, doctorId, onDuty);
+  }
   const hospital = hospitals.get(hospitalId);
   if (!hospital) return;
   const doc = hospital.doctors.find(d => d.id === doctorId);
@@ -658,6 +685,9 @@ function toggleDoctorDuty(hospitalId, doctorId, onDuty) {
 }
 
 function updatePatientSeverity(patientId, newSeverity) {
+  if (backendModeActive()) {
+    return updateBackendPatientSeverity(patientId, newSeverity);
+  }
   const patient = allPatients.get(patientId);
   if (!patient) return;
 
@@ -693,6 +723,7 @@ function logAudit(type, patientId, hospitalId, bedId, doctorId, details) {
 // =============================================================================
 
 function runScenario1_NoICUBed() {
+  if (!allowLocalScenario()) return;
   resetSystem();
   showToast('Running Test 1: No ICU Bed -> Triggers Dijkstra Referral...', 'info');
 
@@ -708,6 +739,7 @@ function runScenario1_NoICUBed() {
 }
 
 function runScenario2_NoDoctor() {
+  if (!allowLocalScenario()) return;
   resetSystem();
   showToast('Running Test 2: Doctor Off-Duty -> Blocks Admission...', 'info');
 
@@ -728,6 +760,7 @@ function runScenario2_NoDoctor() {
 }
 
 function runScenario3_BedContention() {
+  if (!allowLocalScenario()) return;
   resetSystem();
   showToast('Running Test 3: 1 Bed Contention (Severity First, Arrival Second)...', 'info');
 
@@ -756,6 +789,7 @@ function runScenario3_BedContention() {
 }
 
 function runScenario4_DischargeEnable() {
+  if (!allowLocalScenario()) return;
   resetSystem();
   showToast('Running Protocol 4: Discharge Enabling Waiting Admission...', 'info');
 
@@ -776,11 +810,20 @@ function runScenario4_DischargeEnable() {
 }
 
 function runAllTestsSequentially() {
+  if (!allowLocalScenario()) return;
   showToast('Starting sequential automated test execution...', 'info');
   runScenario1_NoICUBed();
   setTimeout(runScenario2_NoDoctor, 1500);
   setTimeout(runScenario3_BedContention, 3000);
   setTimeout(runScenario4_DischargeEnable, 4800);
+}
+
+function allowLocalScenario() {
+  if (backendModeActive()) {
+    showToast('Local demo scenarios are unavailable in backend mode; no mock data was applied.', 'warning');
+    return false;
+  }
+  return true;
 }
 
 function updateTestCard(cardId, detailsId, status, text) {
@@ -798,6 +841,9 @@ function updateTestCard(cardId, detailsId, status, text) {
 }
 
 function loadSyntheticBatch() {
+  if (backendModeActive()) {
+    return loadBackendSyntheticBatch();
+  }
   resetSystem();
   showToast('Ingesting 22 Synthetic Emergency Patient Requests...', 'info');
 
@@ -842,8 +888,36 @@ function renderAll() {
   renderMetrics();
   renderHospitals();
   renderQueue();
+  renderPatientRegister();
   renderMapAndDijkstra();
   renderAudit();
+}
+
+function escapePatientCell(value) {
+  return String(value ?? '—').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+}
+
+function renderPatientRegister() {
+  const body = document.getElementById('patientRegisterBody');
+  if (!body) return;
+  const query = (document.getElementById('patientSearch')?.value || '').trim().toLowerCase();
+  const status = document.getElementById('patientStatusFilter')?.value || 'ALL';
+  const patients = [...allPatients.values()]
+    .filter(patient => status === 'ALL' || patient.status === status)
+    .filter(patient => !query || patient.id.toLowerCase().includes(query) || patient.name.toLowerCase().includes(query))
+    .sort((a, b) => (a.arrivalSequence || 0) - (b.arrivalSequence || 0));
+  const count = document.getElementById('patientRegisterCount');
+  if (count) count.textContent = `${patients.length} of ${allPatients.size} patients`;
+  body.innerHTML = patients.map(patient => {
+    const hospital = patient.assignedHospitalId ? hospitals.get(patient.assignedHospitalId) : null;
+    const placement = patient.assignedBedId
+      ? `${hospital?.name || patient.assignedHospitalId} · ${patient.assignedBedId}${patient.assignedDoctorId ? ` · ${patient.assignedDoctorId}` : ''}`
+      : patient.status === 'WAITING' ? 'Awaiting suitable resources' : '—';
+    const severityName = patient.severity?.name || patient.severity || '—';
+    return `<tr><td class="patient-id-cell">${escapePatientCell(patient.id)}</td><td>${escapePatientCell(patient.name)}<small class="patient-subline">${escapePatientCell(patient.gender || 'Unspecified')}</small></td><td>${escapePatientCell(patient.age)}</td><td><span class="patient-severity severity-${escapePatientCell(String(severityName).toLowerCase())}">${escapePatientCell(severityName)}</span></td><td>${escapePatientCell(patient.requiredFacility)}</td><td><span class="patient-status status-${escapePatientCell(String(patient.status).toLowerCase())}">${escapePatientCell(String(patient.status).replaceAll('_', ' '))}</span></td><td>${escapePatientCell(placement)}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="patient-empty">No patients match this search.</td></tr>';
 }
 
 function renderMetrics() {
@@ -1217,14 +1291,359 @@ function exportAuditJson() {
   showToast('Audit ledger exported to JSON file.', 'success');
 }
 
+async function checkBackendConnectivity() {
+  if (backendSyncInProgress) return;
+  backendSyncInProgress = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/status`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Backend status request failed (${res.status}).`);
+    const data = await res.json();
+    if (data.status !== 'OK') throw new Error('Backend returned an invalid status response.');
+    isBackendConnected = true;
+    backendEverConnected = true;
+    isDatabaseConnected = data.databaseConnected === true;
+    let portalRole = null;
+    try { portalRole = JSON.parse(localStorage.getItem('nalamPortalUserV2') || 'null')?.role || null; } catch { /* No active portal profile. */ }
+    if (!localStorage.getItem('nalamPortalSessionV2') || portalRole !== 'MANAGEMENT') {
+      updateBackendStatusText();
+      return;
+    }
+    await synchronizeBackendState();
+    updateBackendStatusText();
+  } catch (err) {
+    isBackendConnected = false;
+    updateBackendStatusText();
+    if (backendEverConnected) showToast(`Backend unavailable; dashboard state may be stale. ${err.message}`, 'error');
+  } finally {
+    backendSyncInProgress = false;
+  }
+}
+
+function backendModeActive() {
+  return window.location.protocol === 'http:' || window.location.protocol === 'https:' ||
+    isBackendConnected || backendEverConnected;
+}
+
+async function requestBackend(path, options = {}) {
+  const portalToken = localStorage.getItem('nalamPortalSessionV2');
+  const authHeaders = portalToken ? { Authorization: `Bearer ${portalToken}` } : {};
+  const response = await fetch(`${API_BASE}${path}`, {
+    cache: 'no-store',
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...authHeaders, ...(options.headers || {}) }
+  });
+  const bodyText = await response.text();
+  let data = null;
+  if (bodyText) {
+    try {
+      data = JSON.parse(bodyText);
+    } catch (error) {
+      throw new Error(`Backend returned invalid JSON (${response.status}).`);
+    }
+  }
+  if (!response.ok) {
+    throw new Error(data && data.error ? data.error : `Backend request failed (${response.status}).`);
+  }
+  if (data === null) throw new Error('Backend returned an empty response.');
+  return data;
+}
+
+function mapBackendPatient(record) {
+  const severity = Severity[String(record.severity).toUpperCase()];
+  if (!severity) throw new Error(`Backend returned unsupported patient severity: ${record.severity}`);
+  return {
+    id: record.id,
+    name: record.name,
+    age: record.age,
+    gender: record.gender,
+    severity,
+    requiredFacility: record.requiredFacility,
+    arrivalSequence: record.arrivalSequence,
+    status: record.status,
+    assignedHospitalId: record.assignedHospitalId,
+    assignedBedId: record.assignedBedId,
+    assignedDoctorId: record.assignedDoctorId,
+    referralNotes: record.referralNotes || null
+  };
+}
+
+async function synchronizeBackendState() {
+  const [hospitalRecords, patientRecords, queueRecords, auditRecords] = await Promise.all([
+    requestBackend('/api/hospitals'),
+    requestBackend('/api/patients'),
+    requestBackend('/api/queue'),
+    requestBackend('/api/audit')
+  ]);
+  if (![hospitalRecords, patientRecords, queueRecords, auditRecords].every(Array.isArray)) {
+    throw new Error('Backend returned an invalid dashboard snapshot.');
+  }
+
+  hospitals.clear();
+  for (const hospital of hospitalRecords) {
+    hospitals.set(hospital.id, {
+      id: hospital.id,
+      name: hospital.name,
+      locationId: hospital.locationId,
+      isPrimary: hospital.isPrimary,
+      beds: hospital.beds.map(bed => ({
+        id: bed.id,
+        number: bed.number,
+        type: bed.type,
+        facility: bed.type.toUpperCase().startsWith('ICU') ? 'ICU' : 'General',
+        occupied: bed.isOccupied,
+        patientId: bed.patientId
+      })),
+      doctors: hospital.doctors.map(doctor => ({
+        id: doctor.id,
+        name: doctor.name,
+        spec: doctor.specialization,
+        onDuty: doctor.isOnDuty,
+        patientId: doctor.assignedPatientId
+      }))
+    });
+  }
+
+  allPatients = new Map(patientRecords.map(record => {
+    const patient = mapBackendPatient(record);
+    return [patient.id, patient];
+  }));
+  waitingQueue = new PriorityQueue();
+  for (const record of queueRecords) {
+    const patient = allPatients.get(record.id);
+    if (patient) waitingQueue.offer(patient);
+  }
+  auditHistory = auditRecords.slice().reverse().map(record => ({
+    seq: record.seq,
+    time: record.timestamp ? record.timestamp.replace('T', ' ').slice(11, 19) : '',
+    type: record.type,
+    patientId: record.patientId || '-',
+    hospitalId: record.hospitalId || '-',
+    bedId: record.bedId || '-',
+    doctorId: record.doctorId || '-',
+    details: record.details
+  }));
+  patientSeqCounter = Math.max(1, ...patientRecords.map(patient => Number(patient.arrivalSequence) + 1));
+  auditSeqCounter = Math.max(1, ...auditRecords.map(record => Number(record.seq) + 1));
+  renderAll();
+}
+
+function updateBackendStatusText() {
+  const chip = document.getElementById('backendStatusChip');
+  const text = document.getElementById('backendStatusText');
+  if (!chip || !text) return;
+  if (isBackendConnected && isDatabaseConnected) {
+    chip.style.background = 'rgba(104, 176, 171, 0.25)';
+    chip.style.borderColor = '#68B0AB';
+    chip.style.color = '#1B4332';
+    text.innerText = 'REST API ONLINE • MYSQL CONNECTED';
+  } else if (isBackendConnected) {
+    chip.style.background = 'rgba(160, 196, 255, 0.25)';
+    chip.style.borderColor = '#A0C4FF';
+    chip.style.color = '#2B3A67';
+    text.innerText = 'REST API ONLINE • MEMORY ONLY';
+  } else if (backendEverConnected) {
+    chip.style.background = 'rgba(255, 173, 173, 0.25)';
+    chip.style.borderColor = '#FFADAD';
+    chip.style.color = '#782828';
+    text.innerText = 'BACKEND UNAVAILABLE';
+  } else {
+    chip.style.background = 'rgba(255, 173, 173, 0.25)';
+    chip.style.borderColor = '#FFADAD';
+    chip.style.color = '#782828';
+    text.innerText = 'STANDALONE CLIENT ENGINE';
+  }
+}
+
+function describeAllocationResult(result) {
+  switch (result.disposition) {
+    case 'ADMITTED_PRIMARY':
+      return `Admitted locally at ${result.allocatedHospitalId}, bed ${result.allocatedBedId}.`;
+    case 'REFERRED_AND_RESERVED':
+      return `Referred to ${result.allocatedHospitalId}, bed ${result.allocatedBedId} (${result.travelTime} min).`;
+    case 'QUEUED_NO_BED':
+    case 'QUEUED_NO_DOCTOR':
+    case 'QUEUED_NO_CAPACITY':
+      return `Patient remains in the triage queue. ${result.remarks || result.disposition}`;
+    default:
+      return `Triage result: ${result.disposition}.`;
+  }
+}
+
+function summarizeQueueResults(results) {
+  const admitted = results.filter(result => result.disposition === 'ADMITTED_PRIMARY').length;
+  const referred = results.filter(result => result.disposition === 'REFERRED_AND_RESERVED').length;
+  const waiting = results.filter(result => result.disposition.startsWith('QUEUED_')).length;
+  const parts = [];
+  if (admitted) parts.push(`${admitted} admitted locally`);
+  if (referred) parts.push(`${referred} referred`);
+  if (waiting) parts.push(`${waiting} remain waiting`);
+  return parts.length ? `Triage: ${parts.join(', ')}.` : 'No patients required triage.';
+}
+
+async function processBackendWaitingQueue(silent = false) {
+  try {
+    const result = await requestBackend('/api/process-queue', { method: 'POST' });
+    await synchronizeBackendState();
+    if (!result.databasePersisted) {
+      if (!silent) showToast('Queue processed by the backend in memory; database is unavailable.', 'warning');
+    } else if (!silent) {
+      const hasAllocations = result.results.some(item =>
+        item.disposition === 'ADMITTED_PRIMARY' || item.disposition === 'REFERRED_AND_RESERVED');
+      const hasWaitingPatients = result.results.some(item => item.disposition.startsWith('QUEUED_'));
+      showToast(summarizeQueueResults(result.results), hasWaitingPatients && !hasAllocations ? 'warning' : 'success');
+    }
+    return result;
+  } catch (error) {
+    showToast(`Queue processing failed: ${error.message}`, 'error');
+    return null;
+  }
+}
+
+async function submitBackendPatient(patientData, autoProcess = true) {
+  let result;
+  let triageResult = null;
+  try {
+    result = await requestBackend('/api/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: patientData.id,
+        name: patientData.name,
+        age: patientData.age,
+        gender: patientData.gender,
+        severity: patientData.severity.name.toUpperCase(),
+        requiredFacility: patientData.requiredFacility
+      })
+    });
+  } catch (error) {
+    showToast(`Patient registration failed: ${error.message}`, 'error');
+    return null;
+  }
+  if (autoProcess) {
+    triageResult = await processBackendWaitingQueue(true);
+  }
+  try {
+    await synchronizeBackendState();
+    const allocation = triageResult && Array.isArray(triageResult.results)
+      ? triageResult.results.find(item => item.patientId === result.patient.id)
+      : null;
+    const outcome = allocation
+      ? describeAllocationResult(allocation)
+      : triageResult
+        ? 'Patient is registered and remains in the triage queue.'
+        : 'Patient is registered; triage could not be confirmed.';
+    const persistence = result.databasePersisted
+      ? 'Patient record saved to MySQL.'
+      : 'Patient record exists in backend memory only; MySQL is unavailable.';
+    const hasAllocation = allocation &&
+      ['ADMITTED_PRIMARY', 'REFERRED_AND_RESERVED'].includes(allocation.disposition);
+    showToast(`${outcome} ${persistence}`,
+      result.databasePersisted && (!autoProcess || (triageResult && hasAllocation)) ? 'success' : 'warning');
+    return result.patient;
+  } catch (error) {
+    showToast(`Patient was registered but dashboard refresh failed: ${error.message}`, 'error');
+    return result.patient;
+  }
+}
+
+async function refreshBackendDashboard(silent = false) {
+  pendingDischargeNotice = null;
+  const banner = document.getElementById('dischargeRefreshBanner');
+  if (banner) banner.style.display = 'none';
+  const btnRefresh = document.getElementById('btnRefreshSystem');
+  if (btnRefresh) btnRefresh.classList.remove('pulse-highlight');
+  const badge = document.getElementById('refreshBadge');
+  if (badge) badge.style.display = 'none';
+  const result = await processBackendWaitingQueue();
+  if (result && !silent) {
+    showToast('Wards refreshed from backend state.', 'success');
+    playSuccessChime();
+  }
+}
+
+async function dischargeBackendPatient(patientId) {
+  const patient = allPatients.get(patientId);
+  if (!patient || !['ADMITTED_LOCAL', 'REFERRED'].includes(patient.status)) {
+    showToast('Discharge failed: patient is not currently admitted.', 'error');
+    return false;
+  }
+  try {
+    const result = await requestBackend('/api/discharge', {
+      method: 'POST',
+      body: JSON.stringify({ hospitalId: patient.assignedHospitalId, patientId })
+    });
+    await synchronizeBackendState();
+    showToast(result.databasePersisted
+      ? `Discharged ${patient.name}; released resources and updated MySQL.`
+      : `Discharged ${patient.name} in backend memory; MySQL is unavailable.`, result.databasePersisted ? 'success' : 'warning');
+    return true;
+  } catch (error) {
+    showToast(`Discharge failed: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+async function updateBackendDoctorDuty(hospitalId, doctorId, onDuty) {
+  try {
+    const result = await requestBackend('/api/doctor-duty', {
+      method: 'POST',
+      body: JSON.stringify({ hospitalId, doctorId, onDuty })
+    });
+    await synchronizeBackendState();
+    if (result.success) showToast(`Doctor duty status updated${result.databasePersisted ? '.' : ' in backend memory only; MySQL is unavailable.'}`, result.databasePersisted ? 'success' : 'warning');
+  } catch (error) {
+    showToast(`Doctor duty update failed: ${error.message}`, 'error');
+    try {
+      await synchronizeBackendState();
+    } catch (refreshError) {
+      showToast(`Backend refresh after duty update failure also failed: ${refreshError.message}`, 'error');
+    }
+  }
+}
+
+async function updateBackendPatientSeverity(patientId, severity) {
+  try {
+    await requestBackend('/api/patient-severity', {
+      method: 'POST',
+      body: JSON.stringify({ patientId, severity: severity.name.toUpperCase() })
+    });
+    await synchronizeBackendState();
+    showToast(`Patient priority updated to ${severity.name}.`, 'success');
+  } catch (error) {
+    showToast(`Priority update failed: ${error.message}`, 'error');
+  }
+}
+
+async function loadBackendSyntheticBatch() {
+  try {
+    const result = await requestBackend('/api/batch', { method: 'POST' });
+    await requestBackend('/api/process-queue', { method: 'POST' });
+    await synchronizeBackendState();
+    showToast(result.databasePersisted
+      ? `Loaded ${result.ingested} synthetic patients into the backend and MySQL.`
+      : `Loaded ${result.ingested} synthetic patients in backend memory only; MySQL is unavailable.`, result.databasePersisted ? 'success' : 'warning');
+  } catch (error) {
+    showToast(`Batch load failed: ${error.message}`, 'error');
+    try {
+      await synchronizeBackendState();
+    } catch (refreshError) {
+      showToast(`Backend refresh after batch failure also failed: ${refreshError.message}`, 'error');
+    }
+  }
+}
+
 // =============================================================================
 // 7. EVENT LISTENERS & TAB ROUTING
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('patientSearch')?.addEventListener('input', renderPatientRegister);
+  document.getElementById('patientStatusFilter')?.addEventListener('change', renderPatientRegister);
   initializeRoadNetwork();
   initializeHospitals();
   renderAll();
+
+  checkBackendConnectivity();
+  setInterval(checkBackendConnectivity, 10000);
 
   setInterval(updateLiveClock, 1000);
   updateLiveClock();
@@ -1308,8 +1727,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Patient Registration Form
-  document.getElementById('patientForm').addEventListener('submit', (e) => {
+  document.getElementById('patientForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const id = document.getElementById('ptId').value.trim();
     const name = document.getElementById('ptName').value.trim();
     const age = parseInt(document.getElementById('ptAge').value.trim(), 10);
     const gender = document.getElementById('ptGender').value;
@@ -1317,8 +1737,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const facility = document.getElementById('ptFacility').value;
 
     const severity = Severity[sevKey] || Severity.MINOR;
-    registerPatient(null, name, age, gender, severity, facility, true);
+    if (backendModeActive()) {
+      const patient = await submitBackendPatient({ id, name, age, gender, severity, requiredFacility: facility });
+      if (!patient) return;
+      document.getElementById('ptId').value = '';
+      document.getElementById('ptName').value = '';
+      document.getElementById('ptAge').value = '';
+      return;
+    }
+    try {
+      registerPatient(id, name, age, gender, severity, facility, true);
+    } catch (error) {
+      showToast(error.message, 'error');
+      return;
+    }
 
+    document.getElementById('ptId').value = '';
     document.getElementById('ptName').value = '';
     document.getElementById('ptAge').value = '';
   });

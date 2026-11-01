@@ -28,6 +28,28 @@ public class HospitalApp {
             return;
         }
 
+        if (args.length > 0 && ("--server".equalsIgnoreCase(args[0]) || "--web".equalsIgnoreCase(args[0]))) {
+            HospitalSystemManager mgr = SyntheticDataGenerator.initializeSystem();
+            int port = 8080;
+            if (args.length > 1) {
+                try {
+                    port = Integer.parseInt(args[1]);
+                } catch (NumberFormatException ignored) {}
+            }
+            try {
+                com.hospital.api.HospitalApiServer apiServer = new com.hospital.api.HospitalApiServer(mgr, port);
+                apiServer.start();
+                System.out.println("Government Hospital Management Integrated Server Running.");
+                System.out.println("Open http://localhost:" + port + "/ in your web browser.");
+                System.out.println("Press Ctrl + C or Enter to stop.");
+                new Scanner(System.in).nextLine();
+                apiServer.stop();
+            } catch (Exception e) {
+                System.err.println("Failed to start integrated server: " + e.getMessage());
+            }
+            return;
+        }
+
         HospitalApp app = new HospitalApp();
         app.start();
     }

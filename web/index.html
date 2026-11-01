@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang = "en" >
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +10,37 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+ 
+  <main id="portalAuth" class="portal-auth-screen">
+    <section class="portal-auth-card">
+      <div class="portal-brand"><span class="portal-brand-mark">✚</span><div><small>NALAM DISTRICT HEALTH NETWORK</small><h1>Emergency Care Portal</h1></div></div>
+      <p class="portal-lead">Sign in to continue to the patient services or hospital management portal.</p>
+      <div class="portal-auth-switch"><button class="portal-switch active" data-auth-view="login">Sign in</button><button class="portal-switch" data-auth-view="signup">Create account</button></div>
+      <form id="portalLoginForm" class="portal-form">
+        <label>Email address<input id="portalLoginEmail" type="email" autocomplete="username" required></label>
+        <label>Password<input id="portalLoginPassword" type="password" autocomplete="current-password" minlength="8" required></label>
+        <button class="portal-submit" type="submit">Sign in</button>
+      </form>
+      <form id="portalSignupForm" class="portal-form" hidden>
+        <label>Account type<select id="portalSignupRole"><option value="PATIENT">Patient account</option><option value="MANAGEMENT">Hospital management</option></select></label>
+        <label>Full name<input id="portalSignupName" autocomplete="name" required></label>
+        <label>Email address<input id="portalSignupEmail" type="email" autocomplete="email" required></label>
+        <label>Password<input id="portalSignupPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+        <label>Confirm password<input id="portalSignupConfirm" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button class="portal-submit" type="submit">Create account</button>
+      </form>
+      <p id="portalAuthMessage" class="portal-auth-message" aria-live="polite"></p>
+      <small class="portal-demo-note">Patient accounts are created first. Medical registration is completed after sign in.</small>
+    </section>
+  </main>
+
+  <main id="patientPortal" class="patient-portal" hidden>
+    <header class="patient-portal-header"><div class="portal-brand"><span class="portal-brand-mark">✚</span><div><small>PATIENT SERVICES</small><h1>My care dashboard</h1></div></div><div><span id="patientPortalWelcome"></span><button id="patientPortalLogout" class="portal-logout">Sign out</button></div></header>
+    <section class="patient-welcome-card"><div><span class="patient-eyebrow">YOUR EMERGENCY CARE RECORD</span><h2 id="patientPortalName">Patient</h2><p id="patientPortalId"></p></div><span id="patientPortalStatus" class="patient-status status-waiting">Loading status</span></section>
+    <section id="patientIntakeCard" class="patient-info-card"><h3>Register for care</h3><p class="portal-muted">Your patient ID will be generated after you submit this form.</p><form id="patientIntakeForm" class="portal-form"><label>Age<input id="portalPatientAge" type="number" min="0" max="130" required></label><label>Gender<select id="portalPatientGender"><option>Unspecified</option><option>Female</option><option>Male</option><option>Other</option></select></label><label>Urgency<select id="portalPatientSeverity"><option value="MINOR">Minor</option><option value="SERIOUS">Serious</option><option value="CRITICAL">Critical</option></select></label><label>Required care<select id="portalPatientFacility"><option value="General">General bed</option><option value="ICU">ICU bed</option></select></label><button class="portal-submit" type="submit">Submit patient registration</button></form><p id="patientIntakeMessage" class="portal-auth-message" aria-live="polite"></p></section>
+    <section class="patient-portal-grid"><article class="patient-info-card"><h3>My registration</h3><div id="patientPortalRecord">Loading your registration…</div></article><article class="patient-info-card"><h3>Hospital availability</h3><p class="portal-muted">Live bed and available doctor counts across the district.</p><div id="patientHospitalAvailability">Loading availability…</div></article></section>
+    <button id="patientPortalRefresh" class="btn-clinical btn-outline">Refresh status</button>
+  </main>
 
   <!-- Top Administrative Ribbon (Government of Tamil Nadu / Health & Family Welfare) -->
   <div class="gov-top-ribbon">
@@ -21,6 +52,11 @@
         <span>DISTRICT HEALTH SOCIETY (NALAM DISTRICT)</span>
       </div>
       <div class="ribbon-right">
+        <span id="backendStatusChip" class="ribbon-chip" style="background: rgba(104, 176, 171, 0.25); border: 1px solid #68B0AB; color: #1B4332;">
+          <span class="pulse-beacon" id="backendPulse"></span>
+          <span id="backendStatusText">CHECKING BACKEND...</span>
+        </span>
+        <span class="ribbon-sep">|</span>
         <span class="ribbon-chip"><span class="pulse-beacon"></span> 24x7 TRAUMA DISPATCH ONLINE</span>
         <span class="ribbon-sep">|</span>
         <span id="liveClock" class="ribbon-clock">00:00:00</span>
@@ -47,6 +83,7 @@
 
       <!-- Quick Action Controls & Sound Toggle -->
       <div class="header-controls">
+        <button id="managementPortalLogout" class="portal-logout">Management sign out</button>
         <div class="facility-badge">
           <div class="facility-label">CENTRAL NODE</div>
           <div class="facility-val">NDGH Headquarters [L1]</div>
@@ -63,12 +100,16 @@
         </button>
       </div>
     </header>
-
+    
     <!-- Hospital Navigation Tab Bar -->
     <nav class="hospital-nav-tabs">
       <button class="nav-tab active" data-tab="tab-dashboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
         Hospital Wards & Bed Allocation
+      </button>
+      <button class="nav-tab" data-tab="tab-patients">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM20 8v6m3-3h-6"/></svg>
+        Patient Register
       </button>
       <button class="nav-tab" data-tab="tab-map">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 8 8 12 12 16 16 12 12 8"/></svg>
@@ -134,6 +175,25 @@
         </div>
       </div>
     </section>
+
+    <div id="tab-patients" class="tab-content">
+      <div class="clinical-panel patient-register-panel">
+        <div class="panel-header-bar">
+          <div class="panel-header-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h8"/></svg>
+            <span>Patient Register & Current Care Status</span>
+          </div>
+          <span class="panel-header-tag" id="patientRegisterCount">0 patients</span>
+        </div>
+        <div class="patient-register-tools">
+          <label class="patient-search"><span>Search patient ID or name</span><input id="patientSearch" class="clinical-input" type="search" placeholder="e.g. P-101"></label>
+          <label><span>Filter by status</span><select id="patientStatusFilter" class="clinical-select"><option value="ALL">All statuses</option><option value="WAITING">Waiting</option><option value="ADMITTED_LOCAL">Admitted</option><option value="REFERRED">Referred</option><option value="DISCHARGED">Discharged</option></select></label>
+        </div>
+        <div class="table-container">
+          <table class="clinical-table patient-register-table"><thead><tr><th>Patient ID</th><th>Patient</th><th>Age</th><th>Triage</th><th>Care required</th><th>Status</th><th>Current assignment</th></tr></thead><tbody id="patientRegisterBody"></tbody></table>
+        </div>
+      </div>
+    </div>
 
     <!-- Clinical Operations Action Bar -->
     <section class="clinical-action-bar">
@@ -232,6 +292,12 @@
             </div>
 
             <form id="patientForm" class="intake-form">
+              <div class="form-row">
+              <div class="form-field full-width">
+                  <label for="ptId">Patient ID</label>
+                  <input type="text" id="ptId" class="clinical-input" placeholder="e.g. NAL-2026-001" maxlength="64" required>
+                </div>
+              </div>
               <div class="form-row">
                 <div class="form-field full-width">
                   <label for="ptName">Patient Full Name</label>
@@ -523,5 +589,6 @@
   </footer>
 
   <script src="app.js"></script>
+  <script src="portal.js"></script>
 </body>
 </html>

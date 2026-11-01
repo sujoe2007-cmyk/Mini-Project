@@ -20,15 +20,29 @@ if not exist "bin\tests\HospitalAllocationJUnitTest.class" (
     )
 )
 
+set "TEST_STATUS=0"
+
 echo.
 echo =====================================================================
 echo 1. EXECUTING INTEGRATION TEST RUNNER SCENARIOS (TestRunner)
 echo =====================================================================
-"!JAVA!" -cp "bin;lib\junit-4.13.2.jar;lib\hamcrest-core-1.3.jar" tests.TestRunner
+"!JAVA!" -cp "bin;lib\junit-4.13.2.jar;lib\hamcrest-core-1.3.jar;lib\mysql-connector-j-8.3.0.jar" tests.TestRunner
+if !ERRORLEVEL! NEQ 0 set "TEST_STATUS=1"
 
 echo.
 echo =====================================================================
 echo 2. EXECUTING PRODUCTION JUNIT 4 VERIFICATION SUITE (Criterion 2)
 echo =====================================================================
-"!JAVA!" -cp "bin;lib\junit-4.13.2.jar;lib\hamcrest-core-1.3.jar" org.junit.runner.JUnitCore tests.HospitalAllocationJUnitTest
+"!JAVA!" -cp "bin;lib\junit-4.13.2.jar;lib\hamcrest-core-1.3.jar;lib\mysql-connector-j-8.3.0.jar" org.junit.runner.JUnitCore tests.HospitalAllocationJUnitTest
+if !ERRORLEVEL! NEQ 0 set "TEST_STATUS=1"
 
+if exist "bin\tests\HospitalDatabaseIntegrationTest.class" (
+    echo.
+    echo =====================================================================
+    echo 3. EXECUTING DATABASE INTEGRATION AND TRANSACTION JUNIT SUITE
+    echo =====================================================================
+    "!JAVA!" -cp "bin;lib\junit-4.13.2.jar;lib\hamcrest-core-1.3.jar;lib\mysql-connector-j-8.3.0.jar" org.junit.runner.JUnitCore tests.HospitalDatabaseIntegrationTest
+    if !ERRORLEVEL! NEQ 0 set "TEST_STATUS=1"
+)
+
+exit /b %TEST_STATUS%

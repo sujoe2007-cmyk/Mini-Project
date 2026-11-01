@@ -1,6 +1,5 @@
 package tests;
 
-import com.hospital.data.SyntheticDataGenerator;
 import com.hospital.model.*;
 import com.hospital.routing.*;
 import com.hospital.service.HospitalSystemManager;
@@ -30,7 +29,7 @@ public class HospitalAllocationJUnitTest {
 
     @Before
     public void setUp() {
-        manager = SyntheticDataGenerator.initializeSystem();
+        manager = TestDatabaseReset.initializeCleanSystem();
         primary = manager.getPrimaryHospital();
     }
 
